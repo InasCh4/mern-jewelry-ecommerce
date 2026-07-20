@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, Arial, sans-serif;
+  background: #fafaf9;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+#home,
+#products,
+#collections,
+#about {
+  scroll-margin-top: 90px;
+}
