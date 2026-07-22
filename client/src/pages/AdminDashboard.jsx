@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   PackageCheck,
   ShoppingBag,
@@ -186,12 +187,21 @@ const AdminDashboard = () => {
                 </p>
               </div>
 
-              <button
-                onClick={fetchOrders}
-                className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
-              >
-                Refresh
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to="/admin/products"
+                  className="w-fit rounded-full bg-stone-950 px-5 py-2 text-sm text-white transition hover:bg-stone-700"
+                >
+                  Manage Products
+                </Link>
+
+                <button
+                  onClick={fetchOrders}
+                  className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
 
             {orders.length === 0 ? (
