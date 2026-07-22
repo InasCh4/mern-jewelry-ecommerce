@@ -7,22 +7,26 @@ const orderItemSchema = new mongoose.Schema(
       ref: "Product",
       required: true,
     },
+
     name: {
       type: String,
       required: true,
     },
+
     image: {
       type: String,
       required: true,
     },
+
     price: {
       type: Number,
       required: true,
     },
+
     quantity: {
       type: Number,
       required: true,
-      default: 1,
+      min: 1,
     },
   },
   { _id: false },
@@ -30,38 +34,57 @@ const orderItemSchema = new mongoose.Schema(
 
 const orderSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
     customerInfo: {
       fullName: {
         type: String,
         required: true,
       },
+
       phone: {
         type: String,
         required: true,
       },
+
       wilaya: {
         type: String,
         required: true,
       },
+
       commune: {
         type: String,
         required: true,
       },
+
       address: {
         type: String,
         required: true,
       },
+
       note: {
         type: String,
         default: "",
       },
     },
 
-    orderItems: [orderItemSchema],
+    orderItems: {
+      type: [orderItemSchema],
+      required: true,
+      validate: [
+        (items) => items.length > 0,
+        "Order must contain at least one item",
+      ],
+    },
 
     subtotalPrice: {
       type: Number,
       required: true,
+      default: 0,
     },
 
     deliveryPrice: {
@@ -73,6 +96,7 @@ const orderSchema = new mongoose.Schema(
     totalPrice: {
       type: Number,
       required: true,
+      default: 0,
     },
 
     paymentMethod: {

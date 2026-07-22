@@ -195,7 +195,15 @@ const AdminDashboard = () => {
                   Manage Products
                 </Link>
 
+                <Link
+                  to="/admin/orders"
+                  className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+                >
+                  Manage Orders
+                </Link>
+
                 <button
+                  type="button"
                   onClick={fetchOrders}
                   className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
                 >
