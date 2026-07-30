@@ -162,9 +162,65 @@ const updateOrderStatus = async (req, res) => {
       order.paymentStatus = paymentStatus;
     }
 
-    const updatedOrder = await order.save();
+    await order.save();
 
-    res.status(200).json(updatedOrder);
+    const populatedOrder = await Order.findById(order._id).populate(
+      "user",
+      "name email role",
+    );
+
+    res.status(200).json(populatedOrder);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// PATCH /api/orders/:id/cancel
+// Private owner or admin
+const cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
+    const isOwner = order.user?.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        message: "Not authorized to cancel this order",
+      });
+    }
+
+    if (order.orderStatus !== "pending") {
+      return res.status(400).json({
+        message: "Only pending orders can be cancelled",
+      });
+    }
+
+    order.orderStatus = "cancelled";
+
+    const cancelledOrder = await order.save();
+
+    // Restore product stock
+    for (const item of order.orderItems) {
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { stock: item.quantity },
+      });
+    }
+
+    const populatedOrder = await Order.findById(cancelledOrder._id).populate(
+      "user",
+      "name email role",
+    );
+
+    res.status(200).json(populatedOrder);
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -178,4 +234,5 @@ module.exports = {
   getMyOrders,
   getOrderById,
   updateOrderStatus,
+  cancelOrder,
 };

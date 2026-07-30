@@ -24,6 +24,29 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    defaultAddress: {
+      wilaya: {
+        type: String,
+        default: "",
+      },
+
+      commune: {
+        type: String,
+        default: "",
+      },
+
+      address: {
+        type: String,
+        default: "",
+      },
+    },
+
     role: {
       type: String,
       enum: ["user", "admin"],

@@ -5,6 +5,7 @@ const {
   getMyOrders,
   getOrderById,
   updateOrderStatus,
+  cancelOrder,
 } = require("../controllers/orderController");
 
 const { protect, admin } = require("../middleware/authMiddleware");
@@ -18,6 +19,8 @@ router.get("/my-orders", protect, getMyOrders);
 router.get("/", protect, admin, getOrders);
 
 router.get("/:id", protect, getOrderById);
+
+router.patch("/:id/cancel", protect, cancelOrder);
 
 router.patch("/:id/status", protect, admin, updateOrderStatus);
 

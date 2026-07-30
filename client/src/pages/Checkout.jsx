@@ -1,24 +1,27 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Select from "react-select";
 import api from "../api/axios";
 import useCartStore from "../store/cartStore";
+import useAuthStore from "../store/authStore";
 import { WILAYAS, getCommunesByWilayaName } from "../data/algeriaLocations";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const submittingRef = useRef(false);
 
   const cartItems = useCartStore((state) => state.cartItems);
   const clearCart = useCartStore((state) => state.clearCart);
   const subtotalPrice = useCartStore((state) => state.getTotalPrice());
 
   const [form, setForm] = useState({
-    fullName: "",
-    phone: "",
-    wilaya: "",
-    commune: "",
-    address: "",
+    fullName: user?.name || "",
+    phone: user?.phone || "",
+    wilaya: user?.defaultAddress?.wilaya || "",
+    commune: user?.defaultAddress?.commune || "",
+    address: user?.defaultAddress?.address || "",
     note: "",
     deliveryMethod: "home",
     paymentMethod: "cash",
@@ -89,63 +92,86 @@ const Checkout = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setForm({
-      ...form,
+    setForm((prevForm) => ({
+      ...prevForm,
       [name]: value,
-    });
+    }));
   };
 
   const handleSelectChange = (name, value) => {
     if (name === "wilaya") {
-      setForm({
-        ...form,
+      setForm((prevForm) => ({
+        ...prevForm,
         wilaya: value,
         commune: "",
         address: "",
-      });
+      }));
       return;
     }
 
     if (name === "commune") {
-      setForm({
-        ...form,
+      setForm((prevForm) => ({
+        ...prevForm,
         commune: value,
         address: "",
-      });
+      }));
     }
+  };
+
+  const validateForm = () => {
+    if (cartItems.length === 0) {
+      return "Your cart is empty.";
+    }
+
+    if (!form.fullName.trim()) {
+      return "Full name is required.";
+    }
+
+    if (!form.phone.trim()) {
+      return "Phone number is required.";
+    }
+
+    if (!form.wilaya) {
+      return "Please choose your wilaya.";
+    }
+
+    if (!form.commune) {
+      return "Please choose your commune.";
+    }
+
+    if (!form.address.trim()) {
+      return "Address is required.";
+    }
+
+    return "";
   };
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
+
+    if (submittingRef.current || loading) return;
+
     setError("");
 
-    if (cartItems.length === 0) {
-      setError("Your cart is empty.");
-      return;
-    }
+    const validationError = validateForm();
 
-    if (
-      !form.fullName ||
-      !form.phone ||
-      !form.wilaya ||
-      !form.commune ||
-      !form.address
-    ) {
-      setError("Please fill all required fields.");
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     try {
+      submittingRef.current = true;
       setLoading(true);
 
       const payload = {
         customerInfo: {
-          fullName: form.fullName,
-          phone: form.phone,
+          fullName: form.fullName.trim(),
+          phone: form.phone.trim(),
           wilaya: form.wilaya,
           commune: form.commune,
-          address: form.address,
-          note: form.note,
+          address: form.address.trim(),
+          note: form.note.trim(),
         },
 
         orderItems: cartItems.map((item) => ({
@@ -161,11 +187,18 @@ const Checkout = () => {
       const res = await api.post("/orders", payload);
 
       clearCart();
-      navigate(`/order-success/${res.data._id}`);
+
+      navigate(`/order-success/${res.data._id}`, {
+        replace: true,
+      });
     } catch (error) {
-      setError(error.response?.data?.message || "Something went wrong.");
+      setError(
+        error.response?.data?.message ||
+          "Could not place your order. Please try again.",
+      );
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 
@@ -203,6 +236,10 @@ const Checkout = () => {
           <h1 className="mt-3 text-4xl font-bold text-stone-950">
             Complete Your Order
           </h1>
+
+          <p className="mt-3 text-stone-500">
+            Your order will be linked to your account.
+          </p>
         </div>
 
         <form
@@ -311,10 +348,10 @@ const Checkout = () => {
                   commune={form.commune}
                   disabled={!form.commune}
                   onChange={(address) =>
-                    setForm({
-                      ...form,
+                    setForm((prevForm) => ({
+                      ...prevForm,
                       address,
-                    })
+                    }))
                   }
                 />
 
@@ -382,7 +419,7 @@ const Checkout = () => {
               {cartItems.map((item) => (
                 <div key={item._id} className="flex gap-4">
                   <img
-                    src={item.images?.[0]}
+                    src={item.images?.[0] || item.image}
                     alt={item.name}
                     className="h-16 w-16 rounded-2xl object-cover"
                   />
@@ -419,7 +456,7 @@ const Checkout = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || cartItems.length === 0}
               className="mt-8 w-full rounded-full bg-stone-950 px-6 py-4 text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Placing order..." : "Place Order"}

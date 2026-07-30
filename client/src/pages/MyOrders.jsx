@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Package, ShoppingBag } from "lucide-react";
+import { Eye, Package, ShoppingBag } from "lucide-react";
 import api from "../api/axios";
 
 const statusStyles = {
@@ -76,7 +76,7 @@ const MyOrders = () => {
             </p>
 
             <Link
-              to="/shop"
+              to="/#products"
               className="mt-6 inline-flex rounded-full bg-stone-950 px-6 py-3 text-white transition hover:bg-stone-700"
             >
               Start shopping
@@ -119,6 +119,14 @@ const MyOrders = () => {
                     <span className="rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-700">
                       {order.totalPrice} DA
                     </span>
+
+                    <Link
+                      to={`/my-orders/${order._id}`}
+                      className="inline-flex items-center gap-2 rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-700"
+                    >
+                      <Eye size={16} />
+                      Details
+                    </Link>
                   </div>
                 </div>
 

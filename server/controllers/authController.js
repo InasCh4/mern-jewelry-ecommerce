@@ -7,6 +7,22 @@ const generateToken = (userId) => {
   });
 };
 
+const sendUserResponse = (res, statusCode, user) => {
+  res.status(statusCode).json({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone || "",
+    defaultAddress: user.defaultAddress || {
+      wilaya: "",
+      commune: "",
+      address: "",
+    },
+    role: user.role,
+    token: generateToken(user._id),
+  });
+};
+
 // POST /api/auth/register
 const registerUser = async (req, res) => {
   try {
@@ -38,13 +54,7 @@ const registerUser = async (req, res) => {
       password,
     });
 
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id),
-    });
+    sendUserResponse(res, 201, user);
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -79,13 +89,7 @@ const loginUser = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id),
-    });
+    sendUserResponse(res, 200, user);
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -98,8 +102,63 @@ const getMe = async (req, res) => {
   res.status(200).json(req.user);
 };
 
+// PUT /api/auth/profile
+// Private
+// PUT /api/auth/profile
+// Private
+const updateProfile = async (req, res) => {
+  try {
+    const { name, email, phone, defaultAddress } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email });
+
+      if (emailExists) {
+        return res.status(400).json({
+          message: "Email already used by another account",
+        });
+      }
+
+      user.email = email;
+    }
+
+    if (name !== undefined) {
+      user.name = name;
+    }
+
+    if (phone !== undefined) {
+      user.phone = phone;
+    }
+
+    if (defaultAddress) {
+      user.defaultAddress = {
+        wilaya: defaultAddress.wilaya || "",
+        commune: defaultAddress.commune || "",
+        address: defaultAddress.address || "",
+      };
+    }
+
+    const updatedUser = await user.save();
+
+    sendUserResponse(res, 200, updatedUser);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getMe,
+  updateProfile,
 };

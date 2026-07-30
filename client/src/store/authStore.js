@@ -18,7 +18,6 @@ const useAuthStore = create((set) => ({
       const res = await api.post("/auth/register", formData);
 
       localStorage.setItem("userInfo", JSON.stringify(res.data));
-
       useCartStore.getState().syncCartWithUser(true);
 
       set({
@@ -48,7 +47,6 @@ const useAuthStore = create((set) => ({
       const res = await api.post("/auth/login", formData);
 
       localStorage.setItem("userInfo", JSON.stringify(res.data));
-
       useCartStore.getState().syncCartWithUser(true);
 
       set({
@@ -60,6 +58,33 @@ const useAuthStore = create((set) => ({
       return res.data;
     } catch (error) {
       const message = error.response?.data?.message || "Login failed.";
+
+      set({
+        error: message,
+        loading: false,
+      });
+
+      throw new Error(message);
+    }
+  },
+
+  updateProfile: async (formData) => {
+    try {
+      set({ loading: true, error: "" });
+
+      const res = await api.put("/auth/profile", formData);
+
+      localStorage.setItem("userInfo", JSON.stringify(res.data));
+
+      set({
+        user: res.data,
+        loading: false,
+        error: "",
+      });
+
+      return res.data;
+    } catch (error) {
+      const message = error.response?.data?.message || "Profile update failed.";
 
       set({
         error: message,

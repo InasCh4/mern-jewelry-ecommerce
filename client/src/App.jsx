@@ -15,6 +15,9 @@ import AdminRoute from "./components/AdminRoute";
 import MyOrders from "./pages/MyOrders";
 import Account from "./pages/Account";
 import AdminOrders from "./pages/AdminOrders";
+import OrderDetails from "./pages/OrderDetails";
+import { Toaster } from "react-hot-toast";
+
 function LandingPage() {
   return (
     <>
@@ -28,7 +31,19 @@ function App() {
   return (
     <BrowserRouter>
       <Navbar />
-
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            borderRadius: "999px",
+            background: "#1c1917",
+            color: "#fff",
+            padding: "14px 20px",
+            fontSize: "14px",
+          },
+        }}
+      />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/product/:id" element={<ProductDetails />} />
@@ -88,6 +103,15 @@ function App() {
             <AdminRoute>
               <AdminOrders />
             </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/my-orders/:id"
+          element={
+            <ProtectedRoute>
+              <OrderDetails />
+            </ProtectedRoute>
           }
         />
       </Routes>
