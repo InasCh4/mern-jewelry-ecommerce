@@ -9,7 +9,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../api/axios";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const emptyForm = {
   name: "",
@@ -48,7 +51,11 @@ const AdminProducts = () => {
       const res = await api.get("/products");
       setProducts(res.data);
     } catch (error) {
-      console.log("Error fetching products:", error);
+      const message =
+        error.response?.data?.message || "Could not load products.";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -142,6 +149,7 @@ const AdminProducts = () => {
 
     resetImageInput();
     window.scrollTo({ top: 0, behavior: "smooth" });
+    toast("Editing product.");
   };
 
   const handleImageUpload = async (e) => {
@@ -150,13 +158,17 @@ const AdminProducts = () => {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setError("Please choose a valid image file.");
+      const message = "Please choose a valid image file.";
+      setError(message);
+      toast.error(message);
       resetImageInput();
       return;
     }
 
     const formData = new FormData();
     formData.append("image", file);
+
+    const toastId = toast.loading("Uploading image...");
 
     try {
       setUploading(true);
@@ -168,13 +180,25 @@ const AdminProducts = () => {
         },
       });
 
+      await sleep(600);
+
       setForm((prevForm) => ({
         ...prevForm,
         imageUrl: res.data.url,
       }));
+
+      toast.success("Image uploaded successfully.", {
+        id: toastId,
+      });
     } catch (error) {
-      setError(error.response?.data?.message || "Image upload failed.");
+      const message = error.response?.data?.message || "Image upload failed.";
+
+      setError(message);
       resetImageInput();
+
+      toast.error(message, {
+        id: toastId,
+      });
     } finally {
       setUploading(false);
     }
@@ -187,6 +211,7 @@ const AdminProducts = () => {
     }));
 
     resetImageInput();
+    toast.success("Image removed.");
   };
 
   const handleSubmit = async (e) => {
@@ -194,7 +219,23 @@ const AdminProducts = () => {
     setError("");
 
     if (!form.name || !form.description || !form.price || !form.imageUrl) {
-      setError("Please fill all required fields.");
+      const message = "Please fill all required fields.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (Number(form.price) <= 0) {
+      const message = "Price must be greater than 0.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (Number(form.stock || 0) < 0) {
+      const message = "Stock cannot be negative.";
+      setError(message);
+      toast.error(message);
       return;
     }
 
@@ -209,6 +250,10 @@ const AdminProducts = () => {
       isFeatured: form.isFeatured,
     };
 
+    const toastId = toast.loading(
+      editingProduct ? "Updating product..." : "Adding product...",
+    );
+
     try {
       setSaving(true);
 
@@ -218,22 +263,47 @@ const AdminProducts = () => {
         await api.post("/products", payload);
       }
 
+      await sleep(700);
+
       resetForm();
       await fetchProducts();
+
+      toast.success(
+        editingProduct
+          ? "Product updated successfully."
+          : "Product added successfully.",
+        {
+          id: toastId,
+        },
+      );
     } catch (error) {
-      setError(error.response?.data?.message || "Something went wrong.");
+      const message = error.response?.data?.message || "Something went wrong.";
+
+      setError(message);
+
+      toast.error(message, {
+        id: toastId,
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const handleFeaturedToggle = async (product) => {
+    const toastId = toast.loading(
+      product.isFeatured
+        ? "Removing from featured..."
+        : "Adding to featured...",
+    );
+
     try {
       setUpdatingFeaturedId(product._id);
 
       const res = await api.put(`/products/${product._id}`, {
         isFeatured: !product.isFeatured,
       });
+
+      await sleep(500);
 
       setProducts((prevProducts) =>
         prevProducts.map((item) =>
@@ -248,19 +318,37 @@ const AdminProducts = () => {
           isFeatured: res.data.isFeatured,
         }));
       }
+
+      toast.success(
+        res.data.isFeatured
+          ? "Product marked as featured."
+          : "Product removed from featured.",
+        {
+          id: toastId,
+        },
+      );
     } catch (error) {
-      alert(error.response?.data?.message || "Could not update featured.");
+      const message =
+        error.response?.data?.message || "Could not update featured.";
+
+      toast.error(message, {
+        id: toastId,
+      });
     } finally {
       setUpdatingFeaturedId("");
     }
   };
 
   const handleDelete = async (productId) => {
-    const confirmDelete = confirm("Delete this product?");
+    const confirmDelete = window.confirm("Delete this product?");
     if (!confirmDelete) return;
+
+    const toastId = toast.loading("Deleting product...");
 
     try {
       await api.delete(`/products/${productId}`);
+
+      await sleep(600);
 
       setProducts((prevProducts) =>
         prevProducts.filter((product) => product._id !== productId),
@@ -269,8 +357,17 @@ const AdminProducts = () => {
       if (editingProduct?._id === productId) {
         resetForm();
       }
+
+      toast.success("Product deleted successfully.", {
+        id: toastId,
+      });
     } catch (error) {
-      alert(error.response?.data?.message || "Could not delete product.");
+      const message =
+        error.response?.data?.message || "Could not delete product.";
+
+      toast.error(message, {
+        id: toastId,
+      });
     }
   };
 

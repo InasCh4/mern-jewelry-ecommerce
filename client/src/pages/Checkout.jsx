@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Select from "react-select";
+import toast from "react-hot-toast";
 import api from "../api/axios";
 import useCartStore from "../store/cartStore";
 import useAuthStore from "../store/authStore";
@@ -157,8 +158,11 @@ const Checkout = () => {
 
     if (validationError) {
       setError(validationError);
+      toast.error(validationError);
       return;
     }
+
+    const toastId = toast.loading("Placing your order...");
 
     try {
       submittingRef.current = true;
@@ -188,14 +192,23 @@ const Checkout = () => {
 
       clearCart();
 
+      toast.success("Order placed successfully.", {
+        id: toastId,
+      });
+
       navigate(`/order-success/${res.data._id}`, {
         replace: true,
       });
     } catch (error) {
-      setError(
+      const message =
         error.response?.data?.message ||
-          "Could not place your order. Please try again.",
-      );
+        "Could not place your order. Please try again.";
+
+      setError(message);
+
+      toast.error(message, {
+        id: toastId,
+      });
     } finally {
       setLoading(false);
       submittingRef.current = false;

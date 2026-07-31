@@ -11,7 +11,10 @@ import {
   User,
   XCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../api/axios";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const statusStyles = {
   pending: "bg-amber-50 text-amber-600",
@@ -39,7 +42,10 @@ const OrderDetails = () => {
       const res = await api.get(`/orders/${id}`);
       setOrder(res.data);
     } catch (error) {
-      setError(error.response?.data?.message || "Could not load order.");
+      const message = error.response?.data?.message || "Could not load order.";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -56,11 +62,13 @@ const OrderDetails = () => {
   }, [order]);
 
   const handleCancelOrder = async () => {
-    const confirmCancel = confirm(
+    const confirmCancel = window.confirm(
       "Are you sure you want to cancel this order?",
     );
 
     if (!confirmCancel) return;
+
+    const toastId = toast.loading("Cancelling order...");
 
     try {
       setCancelling(true);
@@ -68,9 +76,22 @@ const OrderDetails = () => {
 
       const res = await api.patch(`/orders/${order._id}/cancel`);
 
+      await sleep(700);
+
       setOrder(res.data);
+
+      toast.success("Order cancelled successfully.", {
+        id: toastId,
+      });
     } catch (error) {
-      setError(error.response?.data?.message || "Could not cancel this order.");
+      const message =
+        error.response?.data?.message || "Could not cancel this order.";
+
+      setError(message);
+
+      toast.error(message, {
+        id: toastId,
+      });
     } finally {
       setCancelling(false);
     }

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Package, Search } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../api/axios";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const orderStatuses = [
   "pending",
@@ -46,7 +49,10 @@ const AdminOrders = () => {
       const res = await api.get("/orders");
       setOrders(res.data);
     } catch (error) {
-      setError(error.response?.data?.message || "Could not load orders.");
+      const message = error.response?.data?.message || "Could not load orders.";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -91,10 +97,29 @@ const AdminOrders = () => {
   }, [orders, searchQuery, statusFilter]);
 
   const updateOrder = async (orderId, updateData) => {
+    const isOrderStatusUpdate = Object.prototype.hasOwnProperty.call(
+      updateData,
+      "orderStatus",
+    );
+
+    const isPaymentStatusUpdate = Object.prototype.hasOwnProperty.call(
+      updateData,
+      "paymentStatus",
+    );
+
+    const toastId = toast.loading(
+      isOrderStatusUpdate
+        ? "Updating order status..."
+        : "Updating payment status...",
+    );
+
     try {
       setUpdatingId(orderId);
+      setError("");
 
       const res = await api.patch(`/orders/${orderId}/status`, updateData);
+
+      await sleep(600);
 
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
@@ -105,8 +130,27 @@ const AdminOrders = () => {
       setSelectedOrder((prevOrder) =>
         prevOrder?._id === orderId ? { ...prevOrder, ...res.data } : prevOrder,
       );
+
+      if (isOrderStatusUpdate) {
+        toast.success(`Order marked as ${res.data.orderStatus}.`, {
+          id: toastId,
+        });
+      }
+
+      if (isPaymentStatusUpdate) {
+        toast.success(`Payment marked as ${res.data.paymentStatus}.`, {
+          id: toastId,
+        });
+      }
     } catch (error) {
-      alert(error.response?.data?.message || "Could not update order.");
+      const message =
+        error.response?.data?.message || "Could not update order.";
+
+      setError(message);
+
+      toast.error(message, {
+        id: toastId,
+      });
     } finally {
       setUpdatingId("");
     }

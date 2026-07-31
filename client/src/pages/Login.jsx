@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
+import toast from "react-hot-toast";
 import useAuthStore from "../store/authStore";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, loading, error } = useAuthStore();
-
-  const redirectPath = location.state?.from?.pathname || "/";
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -26,14 +27,61 @@ const Login = () => {
     }));
   };
 
+  const getRedirectPath = (loggedUser) => {
+    if (loggedUser.role === "admin") {
+      return "/admin";
+    }
+
+    if (location.state?.fromLogout) {
+      return "/";
+    }
+
+    const protectedPath = location.state?.from?.pathname;
+
+    const blockedRedirects = ["/login", "/register", "/account"];
+
+    if (protectedPath && !blockedRedirects.includes(protectedPath)) {
+      return protectedPath;
+    }
+
+    return "/";
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (loading) return;
+
+    if (!form.email.trim() || !form.password.trim()) {
+      toast.error("Please enter your email and password.");
+      return;
+    }
+
+    const toastId = toast.loading("Logging in...");
+
     try {
-      await login(form);
-      navigate(redirectPath);
+      const loggedUser = await login({
+        email: form.email.trim().toLowerCase(),
+        password: form.password.trim(),
+      });
+
+      await sleep(800);
+
+      toast.success(`Welcome back, ${loggedUser.name}.`, {
+        id: toastId,
+      });
+
+      await sleep(400);
+
+      navigate(getRedirectPath(loggedUser), {
+        replace: true,
+      });
     } catch (error) {
-      console.log(error.message);
+      const message = error.message || "Login failed.";
+
+      toast.error(message, {
+        id: toastId,
+      });
     }
   };
 
@@ -69,6 +117,7 @@ const Login = () => {
               name="email"
               value={form.email}
               onChange={handleChange}
+              autoComplete="email"
               className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-950"
               placeholder="inas@email.com"
             />
@@ -85,6 +134,7 @@ const Login = () => {
                 name="password"
                 value={form.password}
                 onChange={handleChange}
+                autoComplete="current-password"
                 className="w-full py-3 outline-none"
                 placeholder="Your password"
               />

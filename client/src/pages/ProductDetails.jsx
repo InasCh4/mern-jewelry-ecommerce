@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../api/axios";
 import useCartStore from "../store/cartStore";
 
@@ -9,13 +10,22 @@ const ProductDetails = () => {
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const addToCart = useCartStore((state) => state.addToCart);
   const [added, setAdded] = useState(false);
 
+  const addToCart = useCartStore((state) => state.addToCart);
+
   const handleAddToCart = () => {
+    if (!product) return;
+
+    if (product.stock <= 0) {
+      toast.error("This product is out of stock.");
+      return;
+    }
+
     addToCart(product);
     setAdded(true);
+
+    toast.success(`${product.name} added to cart.`);
 
     setTimeout(() => {
       setAdded(false);
@@ -28,6 +38,7 @@ const ProductDetails = () => {
       setProduct(res.data);
     } catch (error) {
       console.log("Error fetching product:", error);
+      toast.error("Could not load product.");
     } finally {
       setLoading(false);
     }
@@ -91,7 +102,13 @@ const ProductDetails = () => {
                 {product.price} DA
               </span>
 
-              <span className="rounded-full bg-stone-100 px-4 py-2 text-sm text-stone-600">
+              <span
+                className={`rounded-full px-4 py-2 text-sm ${
+                  product.stock > 0
+                    ? "bg-stone-100 text-stone-600"
+                    : "bg-red-50 text-red-600"
+                }`}
+              >
                 Stock: {product.stock}
               </span>
             </div>
@@ -104,11 +121,17 @@ const ProductDetails = () => {
             </p>
 
             <button
+              type="button"
               onClick={handleAddToCart}
-              className="mt-6 inline-flex w-fit items-center gap-3 rounded-full bg-stone-950 px-6 py-3 text-white transition hover:bg-stone-700"
+              disabled={product.stock <= 0}
+              className="mt-6 inline-flex w-fit items-center gap-3 rounded-full bg-stone-950 px-6 py-3 text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
             >
               <ShoppingBag size={20} />
-              {added ? "Added ✓" : "Add to Cart"}
+              {product.stock <= 0
+                ? "Out of stock"
+                : added
+                  ? "Added ✓"
+                  : "Add to Cart"}
             </button>
           </div>
         </div>

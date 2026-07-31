@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
+import toast from "react-hot-toast";
 import useAuthStore from "../store/authStore";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const Register = () => {
   const navigate = useNavigate();
@@ -27,11 +30,49 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (loading) return;
+
+    setForm((prevForm) => ({
+      ...prevForm,
+      email: prevForm.email.trim().toLowerCase(),
+    }));
+
+    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
+      toast.error("Please fill all fields.");
+      return;
+    }
+
+    if (form.password.trim().length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+
+    const toastId = toast.loading("Creating your account...");
+
     try {
-      await register(form);
-      navigate("/");
+      const user = await register({
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password.trim(),
+      });
+
+      await sleep(800);
+
+      toast.success(`Welcome to ECLORA, ${user.name}.`, {
+        id: toastId,
+      });
+
+      await sleep(400);
+
+      navigate("/", {
+        replace: true,
+      });
     } catch (error) {
-      console.log(error.message);
+      const message = error.message || "Register failed.";
+
+      toast.error(message, {
+        id: toastId,
+      });
     }
   };
 
@@ -68,6 +109,7 @@ const Register = () => {
               name="name"
               value={form.name}
               onChange={handleChange}
+              autoComplete="name"
               className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-950"
               placeholder="Inas Chabla"
             />
@@ -81,6 +123,7 @@ const Register = () => {
               name="email"
               value={form.email}
               onChange={handleChange}
+              autoComplete="email"
               className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-950"
               placeholder="inas@email.com"
             />
@@ -97,6 +140,7 @@ const Register = () => {
                 name="password"
                 value={form.password}
                 onChange={handleChange}
+                autoComplete="new-password"
                 className="w-full py-3 outline-none"
                 placeholder="Minimum 6 characters"
               />

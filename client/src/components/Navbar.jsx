@@ -1,7 +1,10 @@
 import { LogOut, Search, ShoppingBag, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import useCartStore from "../store/cartStore";
 import useAuthStore from "../store/authStore";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -9,9 +12,19 @@ const Navbar = () => {
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { user, logout } = useAuthStore();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    toast.success("Logged out successfully.");
+
+    await sleep(700);
+
     logout();
-    navigate("/login");
+
+    navigate("/login", {
+      replace: true,
+      state: {
+        fromLogout: true,
+      },
+    });
   };
 
   return (

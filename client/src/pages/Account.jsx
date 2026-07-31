@@ -12,11 +12,13 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../api/axios";
 import useAuthStore from "../store/authStore";
 import { WILAYAS, getCommunesByWilayaName } from "../data/algeriaLocations";
 import AddressAutocomplete from "../components/AddressAutocomplete";
-import toast from "react-hot-toast";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const Account = () => {
   const navigate = useNavigate();
@@ -108,6 +110,7 @@ const Account = () => {
       });
     } catch (error) {
       setError(error.response?.data?.message || "Could not load profile.");
+      toast.error(error.response?.data?.message || "Could not load profile.");
     } finally {
       setLoading(false);
     }
@@ -173,6 +176,8 @@ const Account = () => {
         },
       });
 
+      await sleep(700);
+
       setProfile((prevProfile) => ({
         ...prevProfile,
         ...updatedUser,
@@ -192,9 +197,19 @@ const Account = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    toast.success("Logged out successfully.");
+
+    await sleep(700);
+
     logout();
-    navigate("/login");
+
+    navigate("/login", {
+      replace: true,
+      state: {
+        fromLogout: true,
+      },
+    });
   };
 
   if (loading) {

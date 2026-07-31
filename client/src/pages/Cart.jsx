@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import toast from "react-hot-toast";
 import useCartStore from "../store/cartStore";
 
 const Cart = () => {
@@ -9,6 +10,32 @@ const Cart = () => {
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const clearCart = useCartStore((state) => state.clearCart);
   const totalPrice = useCartStore((state) => state.getTotalPrice());
+
+  const handleIncreaseQuantity = (item) => {
+    increaseQuantity(item._id);
+  };
+
+  const handleDecreaseQuantity = (item) => {
+    decreaseQuantity(item._id);
+
+    if (item.quantity === 1) {
+      toast.success(`${item.name} removed from cart.`);
+    }
+  };
+
+  const handleRemoveFromCart = (item) => {
+    removeFromCart(item._id);
+    toast.success(`${item.name} removed from cart.`);
+  };
+
+  const handleClearCart = () => {
+    const confirmClear = window.confirm("Clear all items from your cart?");
+
+    if (!confirmClear) return;
+
+    clearCart();
+    toast.success("Cart cleared successfully.");
+  };
 
   if (cartItems.length === 0) {
     return (
@@ -52,8 +79,9 @@ const Cart = () => {
           </div>
 
           <button
-            onClick={clearCart}
-            className="rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-900 hover:text-stone-950"
+            type="button"
+            onClick={handleClearCart}
+            className="rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
           >
             Clear Cart
           </button>
@@ -67,7 +95,7 @@ const Cart = () => {
                 className="grid gap-5 rounded-3xl bg-white p-4 shadow-sm sm:grid-cols-[150px_1fr] sm:items-center"
               >
                 <img
-                  src={item.images?.[0]}
+                  src={item.images?.[0] || item.image}
                   alt={item.name}
                   className="h-40 w-full rounded-2xl object-cover sm:h-32"
                 />
@@ -88,8 +116,9 @@ const Cart = () => {
                   <div className="flex items-center gap-4">
                     <div className="flex items-center rounded-full border border-stone-200">
                       <button
-                        onClick={() => decreaseQuantity(item._id)}
-                        className="grid h-10 w-10 place-items-center"
+                        type="button"
+                        onClick={() => handleDecreaseQuantity(item)}
+                        className="grid h-10 w-10 place-items-center transition hover:text-red-500"
                       >
                         <Minus size={16} />
                       </button>
@@ -99,15 +128,17 @@ const Cart = () => {
                       </span>
 
                       <button
-                        onClick={() => increaseQuantity(item._id)}
-                        className="grid h-10 w-10 place-items-center"
+                        type="button"
+                        onClick={() => handleIncreaseQuantity(item)}
+                        className="grid h-10 w-10 place-items-center transition hover:text-green-600"
                       >
                         <Plus size={16} />
                       </button>
                     </div>
 
                     <button
-                      onClick={() => removeFromCart(item._id)}
+                      type="button"
+                      onClick={() => handleRemoveFromCart(item)}
                       className="grid h-10 w-10 place-items-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-red-50 hover:text-red-500"
                     >
                       <Trash2 size={18} />
