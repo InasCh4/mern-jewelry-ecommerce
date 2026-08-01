@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import {
   CalendarDays,
+  Heart,
   LogOut,
   Mail,
   MapPin,
@@ -26,7 +27,6 @@ const Account = () => {
 
   const [profile, setProfile] = useState(user);
   const [loading, setLoading] = useState(true);
-  const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
@@ -54,7 +54,7 @@ const Account = () => {
   const selectStyles = {
     control: (base, state) => ({
       ...base,
-      minHeight: "50px",
+      minHeight: "48px",
       borderRadius: "1rem",
       borderColor: state.isFocused ? "#1c1917" : "#e7e5e4",
       boxShadow: "none",
@@ -109,8 +109,10 @@ const Account = () => {
         address: res.data.defaultAddress?.address || "",
       });
     } catch (error) {
-      setError(error.response?.data?.message || "Could not load profile.");
-      toast.error(error.response?.data?.message || "Could not load profile.");
+      const message =
+        error.response?.data?.message || "Could not load profile.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -153,7 +155,6 @@ const Account = () => {
     e.preventDefault();
 
     setError("");
-    setSuccess("");
 
     if (!form.name.trim() || !form.email.trim()) {
       const message = "Name and email are required.";
@@ -183,7 +184,6 @@ const Account = () => {
         ...updatedUser,
       }));
 
-      setSuccess("");
       toast.success("Profile updated successfully.", {
         id: toastId,
       });
@@ -221,80 +221,163 @@ const Account = () => {
   }
 
   return (
-    <main className="min-h-[80vh] bg-stone-50 px-6 py-12">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
-            Account
-          </p>
+    <main className="min-h-[80vh] bg-stone-50 px-6 py-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-7 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
+              Account
+            </p>
 
-          <h1 className="mt-3 text-4xl font-bold text-stone-950">My Account</h1>
+            <h1 className="mt-2 text-3xl font-bold text-stone-950 md:text-4xl">
+              My Account
+            </h1>
 
-          <p className="mt-3 text-stone-500">
-            Manage your profile, orders, and default delivery information.
-          </p>
+            <p className="mt-2 text-sm text-stone-500">
+              Manage your profile, delivery address, and saved activity.
+            </p>
+          </div>
+
+          <Link
+            to="/#products"
+            className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+          >
+            Continue shopping
+          </Link>
         </div>
 
-        {(error || success) && (
-          <div className="mb-6 space-y-3">
-            {error && (
-              <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">
-                {error}
-              </p>
-            )}
-
-            {success && (
-              <p className="rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-600">
-                {success}
-              </p>
-            )}
-          </div>
+        {error && (
+          <p className="mb-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </p>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
-          <section className="rounded-[2rem] bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-stone-100">
-              <User size={38} className="text-stone-700" />
-            </div>
+        <div className="grid gap-6 lg:grid-cols-[330px_1fr]">
+          <aside className="space-y-6">
+            <section className="rounded-[2rem] bg-white p-6 text-center shadow-sm">
+              <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-stone-100">
+                <User size={32} className="text-stone-700" />
+              </div>
 
-            <h2 className="mt-5 text-2xl font-bold text-stone-950">
-              {profile?.name}
-            </h2>
-
-            <p className="mt-2 text-stone-500">{profile?.email}</p>
-
-            {profile?.phone && (
-              <p className="mt-2 text-sm text-stone-500">{profile.phone}</p>
-            )}
-
-            <span
-              className={`mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold capitalize ${
-                profile?.role === "admin"
-                  ? "bg-stone-950 text-white"
-                  : "bg-stone-100 text-stone-700"
-              }`}
-            >
-              <ShieldCheck size={16} />
-              {profile?.role}
-            </span>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-6 py-3 text-red-600 transition hover:bg-red-100"
-            >
-              <LogOut size={18} />
-              Logout
-            </button>
-          </section>
-
-          <section className="space-y-6">
-            <div className="rounded-[2rem] bg-white p-8 shadow-sm">
-              <h2 className="text-2xl font-bold text-stone-950">
-                Edit profile
+              <h2 className="mt-4 text-xl font-bold text-stone-950">
+                {profile?.name}
               </h2>
 
-              <form onSubmit={handleUpdateProfile} className="mt-6 space-y-5">
+              <p className="mt-1 truncate text-sm text-stone-500">
+                {profile?.email}
+              </p>
+
+              {profile?.phone && (
+                <p className="mt-1 text-sm text-stone-500">{profile.phone}</p>
+              )}
+
+              <span
+                className={`mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold capitalize ${
+                  profile?.role === "admin"
+                    ? "bg-stone-950 text-white"
+                    : "bg-stone-100 text-stone-700"
+                }`}
+              >
+                <ShieldCheck size={15} />
+                {profile?.role}
+              </span>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-5 py-3 text-sm text-red-600 transition hover:bg-red-100"
+              >
+                <LogOut size={17} />
+                Logout
+              </button>
+            </section>
+
+            <section className="rounded-[2rem] bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-stone-950">
+                Quick actions
+              </h2>
+
+              <div className="mt-5 space-y-3">
+                <Link
+                  to="/my-orders"
+                  className="flex items-center gap-3 rounded-2xl border border-stone-100 p-4 transition hover:border-stone-950 hover:bg-stone-50"
+                >
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-stone-100">
+                    <Package size={19} className="text-stone-700" />
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-stone-950">My Orders</h3>
+                    <p className="text-xs text-stone-500">
+                      Track your purchases.
+                    </p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/wishlist"
+                  className="flex items-center gap-3 rounded-2xl border border-stone-100 p-4 transition hover:border-red-200 hover:bg-red-50"
+                >
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-red-50">
+                    <Heart size={19} className="text-red-500" />
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-stone-950">Wishlist</h3>
+                    <p className="text-xs text-stone-500">
+                      Saved favorite pieces.
+                    </p>
+                  </div>
+                </Link>
+
+                {profile?.role === "admin" && (
+                  <Link
+                    to="/admin"
+                    className="flex items-center gap-3 rounded-2xl border border-stone-100 p-4 transition hover:border-stone-950 hover:bg-stone-50"
+                  >
+                    <div className="grid h-10 w-10 place-items-center rounded-full bg-stone-100">
+                      <ShieldCheck size={19} className="text-stone-700" />
+                    </div>
+
+                    <div>
+                      <h3 className="font-bold text-stone-950">Admin</h3>
+                      <p className="text-xs text-stone-500">
+                        Manage store data.
+                      </p>
+                    </div>
+                  </Link>
+                )}
+              </div>
+            </section>
+          </aside>
+
+          <section className="space-y-6">
+            <form
+              onSubmit={handleUpdateProfile}
+              className="rounded-[2rem] bg-white p-6 shadow-sm md:p-7"
+            >
+              <div className="flex flex-col gap-2 border-b border-stone-100 pb-5 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-stone-950">
+                    Profile settings
+                  </h2>
+
+                  <p className="mt-1 text-sm text-stone-500">
+                    Update your personal information and delivery defaults.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="inline-flex w-fit items-center justify-center gap-2 rounded-full bg-stone-950 px-6 py-3 text-sm text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save size={17} />
+                  {updating ? "Saving..." : "Save"}
+                </button>
+              </div>
+
+              <div className="mt-6 grid gap-5 md:grid-cols-2">
                 <div>
                   <label className="text-sm font-medium text-stone-700">
                     Name
@@ -338,10 +421,44 @@ const Account = () => {
                   />
                 </div>
 
-                <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-stone-700">
+                    Joined
+                  </label>
+
+                  <div className="mt-2 flex h-[50px] items-center gap-3 rounded-2xl border border-stone-200 px-4 text-stone-600">
+                    <CalendarDays size={18} className="text-stone-400" />
+                    <span>
+                      {profile?.createdAt
+                        ? new Date(profile.createdAt).toLocaleDateString(
+                            "en-GB",
+                          )
+                        : "Not available"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-7 rounded-[1.5rem] bg-stone-50 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-white">
+                    <MapPin size={19} className="text-stone-700" />
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-stone-950">
+                      Default delivery address
+                    </h3>
+                    <p className="text-sm text-stone-500">
+                      Used automatically during checkout.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-5 md:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium text-stone-700">
-                      Default wilaya
+                      Wilaya
                     </label>
 
                     <div className="mt-2">
@@ -360,7 +477,7 @@ const Account = () => {
 
                   <div>
                     <label className="text-sm font-medium text-stone-700">
-                      Default commune
+                      Commune
                     </label>
 
                     <div className="mt-2">
@@ -381,69 +498,43 @@ const Account = () => {
                       />
                     </div>
                   </div>
+
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-stone-700">
+                      Address
+                    </label>
+
+                    <AddressAutocomplete
+                      value={form.address}
+                      wilaya={form.wilaya}
+                      commune={form.commune}
+                      disabled={!form.commune}
+                      onChange={(address) =>
+                        setForm((prevForm) => ({
+                          ...prevForm,
+                          address,
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
+              </div>
+            </form>
 
-                <div>
-                  <label className="text-sm font-medium text-stone-700">
-                    Default address
-                  </label>
-
-                  <AddressAutocomplete
-                    value={form.address}
-                    wilaya={form.wilaya}
-                    commune={form.commune}
-                    disabled={!form.commune}
-                    onChange={(address) =>
-                      setForm((prevForm) => ({
-                        ...prevForm,
-                        address,
-                      }))
-                    }
-                  />
-
-                  <p className="mt-2 text-xs text-stone-400">
-                    This address will be used automatically during checkout.
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={updating}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-stone-950 px-6 py-3 text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save size={18} />
-                  {updating ? "Saving..." : "Save changes"}
-                </button>
-              </form>
-            </div>
-
-            <div className="rounded-[2rem] bg-white p-8 shadow-sm">
+            <section className="rounded-[2rem] bg-white p-6 shadow-sm md:p-7">
               <h2 className="text-2xl font-bold text-stone-950">
-                Profile details
+                Account summary
               </h2>
 
-              <div className="mt-6 space-y-4">
-                <div className="flex items-center gap-4 rounded-2xl bg-stone-50 p-4">
-                  <div className="grid h-11 w-11 place-items-center rounded-full bg-white">
-                    <User size={20} className="text-stone-700" />
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-stone-500">Name</p>
-                    <p className="font-semibold text-stone-950">
-                      {profile?.name}
-                    </p>
-                  </div>
-                </div>
-
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <div className="flex items-center gap-4 rounded-2xl bg-stone-50 p-4">
                   <div className="grid h-11 w-11 place-items-center rounded-full bg-white">
                     <Mail size={20} className="text-stone-700" />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm text-stone-500">Email</p>
-                    <p className="font-semibold text-stone-950">
+                    <p className="truncate font-semibold text-stone-950">
                       {profile?.email}
                     </p>
                   </div>
@@ -462,7 +553,7 @@ const Account = () => {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 rounded-2xl bg-stone-50 p-4">
+                <div className="flex items-start gap-4 rounded-2xl bg-stone-50 p-4 md:col-span-2">
                   <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white">
                     <MapPin size={20} className="text-stone-700" />
                   </div>
@@ -488,63 +579,8 @@ const Account = () => {
                     )}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-4 rounded-2xl bg-stone-50 p-4">
-                  <div className="grid h-11 w-11 place-items-center rounded-full bg-white">
-                    <CalendarDays size={20} className="text-stone-700" />
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-stone-500">Joined</p>
-                    <p className="font-semibold text-stone-950">
-                      {profile?.createdAt
-                        ? new Date(profile.createdAt).toLocaleDateString(
-                            "en-GB",
-                          )
-                        : "Not available"}
-                    </p>
-                  </div>
-                </div>
               </div>
-            </div>
-
-            <div className="rounded-[2rem] bg-white p-8 shadow-sm">
-              <h2 className="text-2xl font-bold text-stone-950">
-                Quick actions
-              </h2>
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <Link
-                  to="/my-orders"
-                  className="rounded-2xl border border-stone-100 p-5 transition hover:border-stone-950 hover:bg-stone-50"
-                >
-                  <Package size={24} className="text-stone-700" />
-
-                  <h3 className="mt-4 font-bold text-stone-950">My Orders</h3>
-
-                  <p className="mt-2 text-sm text-stone-500">
-                    View your order history and status.
-                  </p>
-                </Link>
-
-                {profile?.role === "admin" && (
-                  <Link
-                    to="/admin"
-                    className="rounded-2xl border border-stone-100 p-5 transition hover:border-stone-950 hover:bg-stone-50"
-                  >
-                    <ShieldCheck size={24} className="text-stone-700" />
-
-                    <h3 className="mt-4 font-bold text-stone-950">
-                      Admin Dashboard
-                    </h3>
-
-                    <p className="mt-2 text-sm text-stone-500">
-                      Manage products and orders.
-                    </p>
-                  </Link>
-                )}
-              </div>
-            </div>
+            </section>
           </section>
         </div>
       </div>

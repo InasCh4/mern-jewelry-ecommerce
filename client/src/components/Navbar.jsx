@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { LogOut, Search, ShoppingBag, User, X } from "lucide-react";
+import { Heart, LogOut, Search, ShoppingBag, User, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../api/axios";
 import useCartStore from "../store/cartStore";
 import useAuthStore from "../store/authStore";
+import useWishlistStore from "../store/wishlistStore";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -14,22 +15,53 @@ const Navbar = () => {
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { user, logout } = useAuthStore();
 
+  const wishlistItems = useWishlistStore((state) => state.wishlistItems);
+  const getWishlist = useWishlistStore((state) => state.getWishlist);
+  const clearWishlistState = useWishlistStore(
+    (state) => state.clearWishlistState,
+  );
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const wishlistCount = wishlistItems.length;
+
+  useEffect(() => {
+    if (user?._id) {
+      getWishlist(user._id).catch(() => {});
+    } else {
+      clearWishlistState();
+    }
+  }, [user?._id, getWishlist, clearWishlistState]);
 
   const handleLogout = async () => {
     toast.success("Logged out successfully.");
 
     await sleep(700);
 
+    clearWishlistState();
     logout();
 
     navigate("/login", {
       replace: true,
       state: {
         fromLogout: true,
+      },
+    });
+  };
+
+  const handleWishlistClick = () => {
+    if (user) return;
+
+    toast.error("Please login to view your wishlist.");
+
+    navigate("/login", {
+      state: {
+        from: {
+          pathname: "/wishlist",
+        },
       },
     });
   };
@@ -160,6 +192,35 @@ const Navbar = () => {
             >
               <Search size={20} />
             </button>
+
+            {user ? (
+              <Link
+                to="/wishlist"
+                className="relative text-stone-700 transition hover:text-red-500"
+                aria-label="Wishlist"
+              >
+                <Heart
+                  size={20}
+                  fill={wishlistCount > 0 ? "currentColor" : "none"}
+                  className={wishlistCount > 0 ? "text-red-500" : ""}
+                />
+
+                {wishlistCount > 0 && (
+                  <span className="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-[11px] font-bold text-white">
+                    {wishlistCount}
+                  </span>
+                )}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={handleWishlistClick}
+                className="text-stone-700 transition hover:text-red-500"
+                aria-label="Wishlist"
+              >
+                <Heart size={20} />
+              </button>
+            )}
 
             {!user ? (
               <div className="flex items-center gap-3">

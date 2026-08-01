@@ -1,22 +1,26 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+
 import Navbar from "./components/Navbar";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
+
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
 import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminProducts from "./pages/AdminProducts";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import ProtectedRoute from "./components/ProtectedRoute";
-import AdminRoute from "./components/AdminRoute";
 import MyOrders from "./pages/MyOrders";
 import Account from "./pages/Account";
-import AdminOrders from "./pages/AdminOrders";
 import OrderDetails from "./pages/OrderDetails";
-import { Toaster } from "react-hot-toast";
+import Wishlist from "./pages/Wishlist";
+
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminProducts from "./pages/AdminProducts";
+import AdminOrders from "./pages/AdminOrders";
 
 function LandingPage() {
   return (
@@ -31,6 +35,7 @@ function App() {
   return (
     <BrowserRouter>
       <Navbar />
+
       <Toaster
         position="top-center"
         toastOptions={{
@@ -44,10 +49,14 @@ function App() {
           },
         }}
       />
+
       <Routes>
         <Route path="/" element={<LandingPage />} />
+
         <Route path="/product/:id" element={<ProductDetails />} />
+
         <Route path="/cart" element={<Cart />} />
+
         <Route
           path="/checkout"
           element={
@@ -56,7 +65,48 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route path="/order-success/:id" element={<OrderSuccess />} />
+
+        <Route path="/login" element={<Login />} />
+
+        <Route path="/register" element={<Register />} />
+
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <Account />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/wishlist"
+          element={
+            <ProtectedRoute>
+              <Wishlist />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-orders"
+          element={
+            <ProtectedRoute>
+              <MyOrders />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-orders/:id"
+          element={
+            <ProtectedRoute>
+              <OrderDetails />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/admin"
@@ -76,42 +126,12 @@ function App() {
           }
         />
 
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-
-        <Route
-          path="/my-orders"
-          element={
-            <ProtectedRoute>
-              <MyOrders />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/account"
-          element={
-            <ProtectedRoute>
-              <Account />
-            </ProtectedRoute>
-          }
-        />
-
         <Route
           path="/admin/orders"
           element={
             <AdminRoute>
               <AdminOrders />
             </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/my-orders/:id"
-          element={
-            <ProtectedRoute>
-              <OrderDetails />
-            </ProtectedRoute>
           }
         />
       </Routes>

@@ -1,0 +1,89 @@
+const User = require("../models/User");
+const Product = require("../models/Product");
+
+const getWishlist = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate("wishlist");
+
+    res.status(200).json(user.wishlist || []);
+  } catch (error) {
+    res.status(500).json({
+      message: "Could not load wishlist.",
+    });
+  }
+};
+
+const toggleWishlist = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        message: "Product not found.",
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    const exists = user.wishlist.some(
+      (itemId) => itemId.toString() === productId,
+    );
+
+    if (exists) {
+      user.wishlist = user.wishlist.filter(
+        (itemId) => itemId.toString() !== productId,
+      );
+    } else {
+      user.wishlist.push(productId);
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(req.user._id).populate("wishlist");
+
+    res.status(200).json({
+      wishlist: updatedUser.wishlist,
+      isWishlisted: !exists,
+      message: exists
+        ? "Product removed from wishlist."
+        : "Product added to wishlist.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Could not update wishlist.",
+    });
+  }
+};
+
+const removeFromWishlist = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const user = await User.findById(req.user._id);
+
+    user.wishlist = user.wishlist.filter(
+      (itemId) => itemId.toString() !== productId,
+    );
+
+    await user.save();
+
+    const updatedUser = await User.findById(req.user._id).populate("wishlist");
+
+    res.status(200).json({
+      wishlist: updatedUser.wishlist,
+      message: "Product removed from wishlist.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Could not remove product from wishlist.",
+    });
+  }
+};
+
+module.exports = {
+  getWishlist,
+  toggleWishlist,
+  removeFromWishlist,
+};
