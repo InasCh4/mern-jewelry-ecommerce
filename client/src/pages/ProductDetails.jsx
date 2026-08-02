@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Heart, ShoppingBag } from "lucide-react";
+import {
+  ArrowLeft,
+  Heart,
+  MessageCircle,
+  ShoppingBag,
+  Star,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
 import useCartStore from "../store/cartStore";
@@ -15,9 +21,14 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  const [reviewForm, setReviewForm] = useState({
+    rating: "5",
+    comment: "",
+  });
 
   const addToCart = useCartStore((state) => state.addToCart);
-
   const user = useAuthStore((state) => state.user);
 
   const wishlistItems = useWishlistStore((state) => state.wishlistItems);
@@ -36,6 +47,32 @@ const ProductDetails = () => {
       return wishlistProductId?.toString() === product._id?.toString();
     });
   }, [user, product?._id, wishlistItems]);
+
+  const hasReviewed = useMemo(() => {
+    if (!user || !product?.reviews?.length) return false;
+
+    return product.reviews.some((review) => {
+      const reviewUserId = review.user?._id || review.user;
+
+      return reviewUserId?.toString() === user._id?.toString();
+    });
+  }, [user, product?.reviews]);
+
+  const averageRating = Number(product?.rating || 0);
+  const numReviews = Number(product?.numReviews || 0);
+
+  const renderStars = (value, size = 18) => {
+    const roundedValue = Math.round(Number(value || 0));
+
+    return Array.from({ length: 5 }).map((_, index) => (
+      <Star
+        key={index}
+        size={size}
+        fill={index < roundedValue ? "currentColor" : "none"}
+        className={index < roundedValue ? "text-amber-400" : "text-stone-300"}
+      />
+    ));
+  };
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -82,6 +119,83 @@ const ProductDetails = () => {
       toast.error(error.message || "Could not update wishlist.");
     } finally {
       setWishlistLoading(false);
+    }
+  };
+
+  const handleReviewChange = (e) => {
+    const { name, value } = e.target;
+
+    setReviewForm((prevForm) => ({
+      ...prevForm,
+      [name]: value,
+    }));
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!product) return;
+
+    if (!user) {
+      toast.error("Please login to write a review.");
+
+      navigate("/login", {
+        state: {
+          from: {
+            pathname: `/product/${product._id}`,
+          },
+        },
+      });
+
+      return;
+    }
+
+    if (hasReviewed) {
+      toast.error("You already reviewed this product.");
+      return;
+    }
+
+    if (!reviewForm.comment.trim()) {
+      toast.error("Please write your review comment.");
+      return;
+    }
+
+    const rating = Number(reviewForm.rating);
+
+    if (rating < 1 || rating > 5) {
+      toast.error("Rating must be between 1 and 5.");
+      return;
+    }
+
+    const toastId = toast.loading("Submitting review...");
+
+    try {
+      setReviewLoading(true);
+
+      const res = await api.post(`/products/${product._id}/reviews`, {
+        rating,
+        comment: reviewForm.comment.trim(),
+      });
+
+      setProduct(res.data.product);
+
+      setReviewForm({
+        rating: "5",
+        comment: "",
+      });
+
+      toast.success(res.data.message || "Review added successfully.", {
+        id: toastId,
+      });
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Could not submit review.";
+
+      toast.error(message, {
+        id: toastId,
+      });
+    } finally {
+      setReviewLoading(false);
     }
   };
 
@@ -170,6 +284,17 @@ const ProductDetails = () => {
               {product.name}
             </h1>
 
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1">
+                {renderStars(averageRating)}
+              </div>
+
+              <p className="text-sm text-stone-500">
+                {averageRating ? averageRating.toFixed(1) : "0.0"} / 5 ·{" "}
+                {numReviews} {numReviews === 1 ? "review" : "reviews"}
+              </p>
+            </div>
+
             <p className="mt-5 text-lg leading-8 text-stone-600">
               {product.description}
             </p>
@@ -231,6 +356,146 @@ const ProductDetails = () => {
             </div>
           </div>
         </div>
+
+        <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
+          <div className="rounded-[2rem] bg-white p-6 shadow-sm md:p-7">
+            <div className="flex items-center gap-3">
+              <MessageCircle size={24} className="text-stone-700" />
+
+              <div>
+                <h2 className="text-2xl font-bold text-stone-950">
+                  Customer Reviews
+                </h2>
+
+                <p className="mt-1 text-sm text-stone-500">
+                  {numReviews} {numReviews === 1 ? "person has" : "people have"}{" "}
+                  reviewed this product.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {product.reviews?.length > 0 ? (
+                product.reviews.map((review) => (
+                  <div
+                    key={review._id}
+                    className="rounded-2xl border border-stone-100 bg-stone-50 p-5"
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="font-bold text-stone-950">
+                          {review.name}
+                        </p>
+
+                        <p className="mt-1 text-xs text-stone-400">
+                          {review.createdAt
+                            ? new Date(review.createdAt).toLocaleDateString(
+                                "en-GB",
+                              )
+                            : "Recently"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {renderStars(review.rating, 16)}
+                      </div>
+                    </div>
+
+                    <p className="mt-4 leading-7 text-stone-600">
+                      {review.comment}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl bg-stone-50 p-6 text-center">
+                  <p className="font-semibold text-stone-950">No reviews yet</p>
+
+                  <p className="mt-2 text-sm text-stone-500">
+                    Be the first to leave a review for this piece.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <aside className="h-fit rounded-[2rem] bg-white p-6 shadow-sm md:p-7">
+            <h2 className="text-2xl font-bold text-stone-950">
+              Write a review
+            </h2>
+
+            {!user ? (
+              <div className="mt-5 rounded-2xl bg-stone-50 p-5">
+                <p className="text-sm text-stone-600">
+                  Please login to write a review.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/login", {
+                      state: {
+                        from: {
+                          pathname: `/product/${product._id}`,
+                        },
+                      },
+                    })
+                  }
+                  className="mt-4 rounded-full bg-stone-950 px-5 py-2 text-sm text-white transition hover:bg-stone-700"
+                >
+                  Login
+                </button>
+              </div>
+            ) : hasReviewed ? (
+              <div className="mt-5 rounded-2xl bg-green-50 p-5 text-green-700">
+                You already reviewed this product. Thank you ⭐
+              </div>
+            ) : (
+              <form onSubmit={handleReviewSubmit} className="mt-5 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-stone-700">
+                    Rating
+                  </label>
+
+                  <select
+                    name="rating"
+                    value={reviewForm.rating}
+                    onChange={handleReviewChange}
+                    className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-950"
+                  >
+                    <option value="5">5 stars</option>
+                    <option value="4">4 stars</option>
+                    <option value="3">3 stars</option>
+                    <option value="2">2 stars</option>
+                    <option value="1">1 star</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-stone-700">
+                    Comment
+                  </label>
+
+                  <textarea
+                    name="comment"
+                    value={reviewForm.comment}
+                    onChange={handleReviewChange}
+                    rows="5"
+                    className="mt-2 w-full resize-none rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-950"
+                    placeholder="Share your thoughts about this product..."
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={reviewLoading}
+                  className="w-full rounded-full bg-stone-950 px-6 py-3 text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {reviewLoading ? "Submitting..." : "Submit review"}
+                </button>
+              </form>
+            )}
+          </aside>
+        </section>
       </div>
     </main>
   );
