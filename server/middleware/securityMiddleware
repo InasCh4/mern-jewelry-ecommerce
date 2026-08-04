@@ -1,0 +1,101 @@
+const rateLimit = require("express-rate-limit");
+const xss = require("xss");
+
+const stripHtml = (value) => {
+  return xss(String(value || "").trim(), {
+    whiteList: {},
+    stripIgnoreTag: true,
+    stripIgnoreTagBody: ["script", "style"],
+  }).trim();
+};
+
+const sanitizeValue = (value) => {
+  if (typeof value === "string") {
+    return stripHtml(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return sanitizeObject(value);
+  }
+
+  return value;
+};
+
+const sanitizeObject = (obj) => {
+  const cleanObject = {};
+
+  Object.keys(obj || {}).forEach((key) => {
+    if (key.startsWith("$") || key.includes(".")) {
+      return;
+    }
+
+    cleanObject[key] = sanitizeValue(obj[key]);
+  });
+
+  return cleanObject;
+};
+
+const sanitizeRequest = (req, res, next) => {
+  if (req.body && typeof req.body === "object") {
+    req.body = sanitizeObject(req.body);
+  }
+
+  if (req.params && typeof req.params === "object") {
+    req.params = sanitizeObject(req.params);
+  }
+
+  next();
+};
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many requests. Please try again later.",
+  },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many authentication attempts. Please try again later.",
+  },
+});
+
+const orderLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many order requests. Please try again later.",
+  },
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many upload requests. Please try again later.",
+  },
+});
+
+module.exports = {
+  sanitizeRequest,
+  globalLimiter,
+  authLimiter,
+  orderLimiter,
+  uploadLimiter,
+  stripHtml,
+};

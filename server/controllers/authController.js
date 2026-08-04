@@ -1,9 +1,24 @@
 const jwt = require("jsonwebtoken");
+const validator = require("validator");
 const User = require("../models/User");
+const { stripHtml } = require("../middleware/securityMiddleware");
+
+const normalizeEmail = (email) =>
+  String(email || "")
+    .trim()
+    .toLowerCase();
+
+const cleanText = (value, maxLength = 120) => {
+  return stripHtml(value).slice(0, maxLength).trim();
+};
 
 const generateToken = (userId) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is missing.");
+  }
+
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: "30d",
+    expiresIn: process.env.JWT_EXPIRES_IN || "30d",
   });
 };
 
@@ -26,17 +41,31 @@ const sendUserResponse = (res, statusCode, user) => {
 // POST /api/auth/register
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const name = cleanText(req.body.name, 60);
+    const email = normalizeEmail(req.body.email);
+    const password = String(req.body.password || "");
 
     if (!name || !email || !password) {
       return res.status(400).json({
-        message: "Please fill all required fields",
+        message: "Please fill all required fields.",
       });
     }
 
-    if (password.length < 6) {
+    if (name.length < 2) {
       return res.status(400).json({
-        message: "Password must be at least 6 characters",
+        message: "Name must be at least 2 characters.",
+      });
+    }
+
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({
+        message: "Please enter a valid email address.",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters.",
       });
     }
 
@@ -44,7 +73,7 @@ const registerUser = async (req, res) => {
 
     if (userExists) {
       return res.status(400).json({
-        message: "User already exists",
+        message: "User already exists.",
       });
     }
 
@@ -65,11 +94,18 @@ const registerUser = async (req, res) => {
 // POST /api/auth/login
 const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const password = String(req.body.password || "");
 
     if (!email || !password) {
       return res.status(400).json({
-        message: "Please enter email and password",
+        message: "Please enter email and password.",
+      });
+    }
+
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({
+        message: "Please enter a valid email address.",
       });
     }
 
@@ -77,7 +113,7 @@ const loginUser = async (req, res) => {
 
     if (!user) {
       return res.status(401).json({
-        message: "Invalid email or password",
+        message: "Invalid email or password.",
       });
     }
 
@@ -85,7 +121,7 @@ const loginUser = async (req, res) => {
 
     if (!isPasswordCorrect) {
       return res.status(401).json({
-        message: "Invalid email or password",
+        message: "Invalid email or password.",
       });
     }
 
@@ -104,45 +140,70 @@ const getMe = async (req, res) => {
 
 // PUT /api/auth/profile
 // Private
-// PUT /api/auth/profile
-// Private
 const updateProfile = async (req, res) => {
   try {
-    const { name, email, phone, defaultAddress } = req.body;
+    const name =
+      req.body.name !== undefined ? cleanText(req.body.name, 60) : "";
+    const email =
+      req.body.email !== undefined ? normalizeEmail(req.body.email) : "";
+    const phone =
+      req.body.phone !== undefined ? cleanText(req.body.phone, 25) : "";
+    const defaultAddress = req.body.defaultAddress;
 
     const user = await User.findById(req.user._id);
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found",
+        message: "User not found.",
       });
     }
 
     if (email && email !== user.email) {
-      const emailExists = await User.findOne({ email });
+      if (!validator.isEmail(email)) {
+        return res.status(400).json({
+          message: "Please enter a valid email address.",
+        });
+      }
+
+      const emailExists = await User.findOne({
+        email,
+        _id: { $ne: user._id },
+      });
 
       if (emailExists) {
         return res.status(400).json({
-          message: "Email already used by another account",
+          message: "Email already used by another account.",
         });
       }
 
       user.email = email;
     }
 
-    if (name !== undefined) {
+    if (req.body.name !== undefined) {
+      if (!name || name.length < 2) {
+        return res.status(400).json({
+          message: "Name must be at least 2 characters.",
+        });
+      }
+
       user.name = name;
     }
 
-    if (phone !== undefined) {
+    if (req.body.phone !== undefined) {
+      if (phone && !validator.isMobilePhone(phone, "any")) {
+        return res.status(400).json({
+          message: "Please enter a valid phone number.",
+        });
+      }
+
       user.phone = phone;
     }
 
     if (defaultAddress) {
       user.defaultAddress = {
-        wilaya: defaultAddress.wilaya || "",
-        commune: defaultAddress.commune || "",
-        address: defaultAddress.address || "",
+        wilaya: cleanText(defaultAddress.wilaya, 80),
+        commune: cleanText(defaultAddress.commune, 80),
+        address: cleanText(defaultAddress.address, 180),
       };
     }
 
