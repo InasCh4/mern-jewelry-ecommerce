@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Heart } from "lucide-react";
+import { Heart, Star } from "lucide-react";
 import toast from "react-hot-toast";
 import useCartStore from "../store/cartStore";
 import useAuthStore from "../store/authStore";
@@ -22,6 +22,13 @@ const ProductCard = ({ product }) => {
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
   const isOutOfStock = product.stock <= 0;
+  const averageRating = Number(product.rating || 0);
+
+  const price = Number(product.price || 0);
+  const oldPrice = Number(product.oldPrice || 0);
+  const discountPercent = Number(product.discountPercent || 0);
+
+  const hasDiscount = oldPrice > price && discountPercent > 0;
 
   const isWishlisted = useMemo(() => {
     if (!user || !product?._id) return false;
@@ -80,7 +87,13 @@ const ProductCard = ({ product }) => {
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+      {hasDiscount && (
+        <span className="absolute left-3 top-3 z-10 rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+          -{discountPercent}%
+        </span>
+      )}
+
       <button
         type="button"
         onClick={handleToggleWishlist}
@@ -105,9 +118,27 @@ const ProductCard = ({ product }) => {
         </div>
 
         <div className="p-4 pb-0">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-stone-400">
-            {product.category}
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-stone-400">
+              {product.category}
+            </p>
+
+            <div className="flex shrink-0 items-center gap-1 text-xs text-stone-500">
+              <Star
+                size={14}
+                fill={averageRating > 0 ? "currentColor" : "none"}
+                className={
+                  averageRating > 0 ? "text-amber-400" : "text-stone-300"
+                }
+              />
+
+              <span>
+                {averageRating > 0
+                  ? `${averageRating.toFixed(1)} reviews`
+                  : "No reviews"}
+              </span>
+            </div>
+          </div>
 
           <h3 className="mt-2 text-lg font-semibold text-stone-900">
             {product.name}
@@ -119,15 +150,39 @@ const ProductCard = ({ product }) => {
         </div>
       </Link>
 
-      <div className="flex items-center justify-between p-4">
-        <span className="text-base font-bold text-stone-900">
-          {product.price} DA
-        </span>
+      <div className="mt-auto p-4 pt-5">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="whitespace-nowrap text-lg font-semibold text-stone-900">
+                {price} DA
+              </p>
 
-        <div className="flex items-center gap-2">
+              {hasDiscount && (
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                  Sale
+                </span>
+              )}
+            </div>
+
+            {hasDiscount && (
+              <p className="mt-0.5 whitespace-nowrap text-xs text-stone-400 line-through">
+                {oldPrice} DA
+              </p>
+            )}
+          </div>
+
+          {isOutOfStock && (
+            <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+              Out of stock
+            </span>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
           <Link
             to={`/product/${product._id}`}
-            className="rounded-full border border-stone-200 px-4 py-2 text-sm text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+            className="rounded-full border border-stone-200 px-4 py-2.5 text-center text-sm text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
           >
             View
           </Link>
@@ -136,7 +191,7 @@ const ProductCard = ({ product }) => {
             type="button"
             onClick={handleAddToCart}
             disabled={isOutOfStock}
-            className="rounded-full bg-stone-900 px-4 py-2 text-sm text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+            className="rounded-full bg-stone-900 px-4 py-2.5 text-sm text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
             {isOutOfStock ? "Out" : "Add"}
           </button>

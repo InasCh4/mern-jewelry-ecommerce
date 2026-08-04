@@ -61,6 +61,26 @@ const OrderDetails = () => {
     return timelineSteps.indexOf(order.orderStatus);
   }, [order]);
 
+  const totalSavings = useMemo(() => {
+    if (!order?.orderItems?.length) return 0;
+
+    return order.orderItems.reduce((sum, item) => {
+      const price = Number(item.price || 0);
+      const oldPrice = Number(item.oldPrice || 0);
+      const quantity = Number(item.quantity || 1);
+      const discountPercent = Number(item.discountPercent || 0);
+
+      if (oldPrice > price && discountPercent > 0) {
+        return sum + (oldPrice - price) * quantity;
+      }
+
+      return sum;
+    }, 0);
+  }, [order]);
+
+  const subtotalBeforeDiscount =
+    Number(order?.subtotalPrice || 0) + totalSavings;
+
   const handleCancelOrder = async () => {
     const confirmCancel = window.confirm(
       "Are you sure you want to cancel this order?",
@@ -153,7 +173,7 @@ const OrderDetails = () => {
           </Link>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
           <section className="space-y-6">
             <div className="rounded-[2rem] bg-white p-6 shadow-sm md:p-8">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -211,30 +231,64 @@ const OrderDetails = () => {
               <h2 className="text-2xl font-bold text-stone-950">Products</h2>
 
               <div className="mt-6 space-y-4">
-                {order.orderItems?.map((item) => (
-                  <div
-                    key={item.product}
-                    className="flex items-center gap-4 rounded-2xl bg-stone-50 p-4"
-                  >
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="h-20 w-20 rounded-2xl object-cover"
-                    />
+                {order.orderItems?.map((item) => {
+                  const price = Number(item.price || 0);
+                  const oldPrice = Number(item.oldPrice || 0);
+                  const quantity = Number(item.quantity || 1);
+                  const discountPercent = Number(item.discountPercent || 0);
+                  const hasDiscount = oldPrice > price && discountPercent > 0;
+                  const lineTotal = price * quantity;
 
-                    <div className="flex-1">
-                      <p className="font-bold text-stone-950">{item.name}</p>
+                  return (
+                    <div
+                      key={`${order._id}-${item.product}`}
+                      className="flex items-center gap-4 rounded-2xl bg-stone-50 p-4"
+                    >
+                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-stone-100">
+                        {hasDiscount && (
+                          <span className="absolute left-2 top-2 z-10 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+                            -{discountPercent}%
+                          </span>
+                        )}
 
-                      <p className="mt-1 text-sm text-stone-500">
-                        Qty: {item.quantity} × {item.price} DA
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate font-bold text-stone-950">
+                            {item.name}
+                          </p>
+
+                          {hasDiscount && (
+                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                              Sale
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mt-1 text-sm text-stone-500">
+                          Qty: {quantity} × {price} DA
+                        </p>
+
+                        {hasDiscount && (
+                          <p className="mt-0.5 text-xs text-stone-400">
+                            Old price:{" "}
+                            <span className="line-through">{oldPrice} DA</span>
+                          </p>
+                        )}
+                      </div>
+
+                      <p className="whitespace-nowrap font-bold text-stone-950">
+                        {lineTotal} DA
                       </p>
                     </div>
-
-                    <p className="font-bold text-stone-950">
-                      {item.quantity * item.price} DA
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -297,23 +351,52 @@ const OrderDetails = () => {
           </section>
 
           <aside className="h-fit space-y-6">
-            <div className="rounded-[2rem] bg-white p-6 shadow-sm">
+            <div className="overflow-hidden rounded-[2rem] bg-white p-6 shadow-sm">
               <h2 className="text-2xl font-bold text-stone-950">Summary</h2>
 
-              <div className="mt-6 space-y-4 text-stone-600">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>{order.subtotalPrice} DA</span>
+              <div className="mt-6 space-y-4 text-sm text-stone-600">
+                {totalSavings > 0 && (
+                  <div className="grid grid-cols-[1fr_auto] items-center gap-4">
+                    <span className="min-w-0">Before discount</span>
+
+                    <span className="whitespace-nowrap text-right line-through">
+                      {subtotalBeforeDiscount} DA
+                    </span>
+                  </div>
+                )}
+
+                {totalSavings > 0 && (
+                  <div className="grid grid-cols-[1fr_auto] items-center gap-4 text-red-600">
+                    <span className="min-w-0">You save</span>
+
+                    <span className="whitespace-nowrap text-right">
+                      -{totalSavings} DA
+                    </span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-[1fr_auto] items-center gap-4">
+                  <span className="min-w-0">Subtotal</span>
+
+                  <span className="whitespace-nowrap text-right">
+                    {order.subtotalPrice} DA
+                  </span>
                 </div>
 
-                <div className="flex justify-between">
-                  <span>Delivery</span>
-                  <span>{order.deliveryPrice} DA</span>
+                <div className="grid grid-cols-[1fr_auto] items-center gap-4">
+                  <span className="min-w-0">Delivery</span>
+
+                  <span className="whitespace-nowrap text-right">
+                    {order.deliveryPrice} DA
+                  </span>
                 </div>
 
-                <div className="flex justify-between border-t border-stone-100 pt-4 text-xl font-bold text-stone-950">
-                  <span>Total</span>
-                  <span>{order.totalPrice} DA</span>
+                <div className="grid grid-cols-[1fr_auto] items-center gap-4 border-t border-stone-100 pt-4 text-xl font-bold text-stone-950">
+                  <span className="min-w-0">Total</span>
+
+                  <span className="whitespace-nowrap text-right">
+                    {order.totalPrice} DA
+                  </span>
                 </div>
               </div>
             </div>

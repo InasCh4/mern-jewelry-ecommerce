@@ -181,7 +181,7 @@ const AdminDashboard = () => {
 
                 <p className="mt-1 text-stone-500">
                   Total revenue:{" "}
-                  <span className="font-semibold text-stone-950">
+                  <span className="whitespace-nowrap font-semibold text-stone-950">
                     {totalRevenue} DA
                   </span>
                 </p>
@@ -216,17 +216,27 @@ const AdminDashboard = () => {
               <p className="py-10 text-center text-stone-500">No orders yet.</p>
             ) : (
               <div className="mt-6 overflow-x-auto">
-                <table className="w-full min-w-[1120px] border-collapse">
+                <table className="w-full min-w-[1280px] border-collapse">
                   <thead>
                     <tr className="text-left text-sm text-stone-400">
-                      <th className="py-4 font-medium">Order</th>
-                      <th className="py-4 font-medium">Customer</th>
-                      <th className="py-4 font-medium">Location</th>
-                      <th className="py-4 font-medium">Items</th>
-                      <th className="py-4 font-medium">Total</th>
-                      <th className="py-4 font-medium">Payment</th>
-                      <th className="py-4 font-medium">Status</th>
-                      <th className="py-4 text-right font-medium">Action</th>
+                      <th className="w-[170px] py-4 pr-5 font-medium">Order</th>
+                      <th className="w-[190px] py-4 pr-5 font-medium">
+                        Customer
+                      </th>
+                      <th className="w-[150px] py-4 pr-5 font-medium">
+                        Location
+                      </th>
+                      <th className="w-[310px] py-4 pr-5 font-medium">Items</th>
+                      <th className="w-[130px] py-4 pr-6 font-medium">Total</th>
+                      <th className="w-[120px] py-4 pr-5 font-medium">
+                        Payment
+                      </th>
+                      <th className="w-[170px] py-4 pr-5 font-medium">
+                        Status
+                      </th>
+                      <th className="w-[120px] py-4 text-right font-medium">
+                        Action
+                      </th>
                     </tr>
                   </thead>
 
@@ -236,27 +246,27 @@ const AdminDashboard = () => {
                         key={order._id}
                         className="border-t border-stone-100 text-sm"
                       >
-                        <td className="py-5 pr-4">
+                        <td className="py-5 pr-5">
                           <p className="max-w-[160px] truncate font-semibold text-stone-950">
                             {order._id}
                           </p>
 
-                          <p className="mt-1 text-xs text-stone-400">
+                          <p className="mt-1 whitespace-nowrap text-xs text-stone-400">
                             {new Date(order.createdAt).toLocaleString()}
                           </p>
                         </td>
 
-                        <td className="py-5 pr-4">
+                        <td className="py-5 pr-5">
                           <p className="font-semibold text-stone-950">
                             {order.customerInfo?.fullName}
                           </p>
 
-                          <p className="mt-1 text-stone-500">
+                          <p className="mt-1 whitespace-nowrap text-stone-500">
                             {order.customerInfo?.phone}
                           </p>
                         </td>
 
-                        <td className="py-5 pr-4">
+                        <td className="py-5 pr-5">
                           <p className="font-medium text-stone-950">
                             {order.customerInfo?.wilaya}
                           </p>
@@ -266,7 +276,7 @@ const AdminDashboard = () => {
                           </p>
                         </td>
 
-                        <td className="py-5 pr-4">
+                        <td className="py-5 pr-5">
                           <div className="space-y-2">
                             {order.orderItems?.map((item) => (
                               <div
@@ -276,11 +286,11 @@ const AdminDashboard = () => {
                                 <img
                                   src={item.image}
                                   alt={item.name}
-                                  className="h-12 w-12 rounded-xl object-cover"
+                                  className="h-12 w-12 shrink-0 rounded-xl object-cover"
                                 />
 
-                                <div>
-                                  <p className="max-w-[200px] truncate font-medium text-stone-950">
+                                <div className="min-w-0">
+                                  <p className="max-w-[210px] truncate font-medium text-stone-950">
                                     {item.name}
                                   </p>
 
@@ -293,21 +303,23 @@ const AdminDashboard = () => {
                           </div>
                         </td>
 
-                        <td className="py-5 pr-4 font-bold text-stone-950">
-                          {order.totalPrice} DA
+                        <td className="w-[130px] py-5 pr-6">
+                          <span className="block whitespace-nowrap text-base font-semibold text-stone-950">
+                            {order.totalPrice} DA
+                          </span>
                         </td>
 
-                        <td className="py-5 pr-4">
-                          <p className="font-medium capitalize text-stone-950">
+                        <td className="py-5 pr-5">
+                          <p className="whitespace-nowrap font-medium capitalize text-stone-950">
                             {order.paymentMethod}
                           </p>
 
-                          <p className="mt-1 text-xs capitalize text-stone-500">
+                          <p className="mt-1 whitespace-nowrap text-xs capitalize text-stone-500">
                             {order.paymentStatus}
                           </p>
                         </td>
 
-                        <td className="py-5 pr-4">
+                        <td className="py-5 pr-5">
                           <div className="flex flex-col gap-3">
                             <span
                               className={`w-fit rounded-full px-3 py-1 text-xs font-semibold capitalize ${getStatusClass(
@@ -323,7 +335,7 @@ const AdminDashboard = () => {
                               onChange={(e) =>
                                 updateStatus(order._id, e.target.value)
                               }
-                              className="w-36 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm capitalize text-stone-700 outline-none transition focus:border-stone-900 disabled:opacity-60"
+                              className="w-36 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm capitalize text-stone-700 outline-none transition focus:border-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {statusOptions.map((status) => (
                                 <option key={status} value={status}>
@@ -334,10 +346,11 @@ const AdminDashboard = () => {
                           </div>
                         </td>
 
-                        <td className="py-5 pr-4 text-right">
+                        <td className="py-5 text-right">
                           <button
+                            type="button"
                             onClick={() => setSelectedOrder(order)}
-                            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:bg-stone-950 hover:text-white"
+                            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:bg-stone-950 hover:text-white"
                           >
                             <Eye size={15} />
                             Details
@@ -465,7 +478,7 @@ const AdminDashboard = () => {
                     onChange={(e) =>
                       updateStatus(selectedOrder._id, e.target.value)
                     }
-                    className="mt-3 w-full rounded-2xl border border-stone-200 px-3 py-3 text-sm outline-none focus:border-stone-900 disabled:opacity-60"
+                    className="mt-3 w-full rounded-2xl border border-stone-200 px-3 py-3 text-sm outline-none focus:border-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {statusOptions.map((status) => (
                       <option key={status} value={status}>
@@ -488,7 +501,7 @@ const AdminDashboard = () => {
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="h-16 w-16 rounded-2xl object-cover"
+                        className="h-16 w-16 shrink-0 rounded-2xl object-cover"
                       />
 
                       <div className="min-w-0 flex-1">
@@ -501,7 +514,7 @@ const AdminDashboard = () => {
                         </p>
                       </div>
 
-                      <p className="font-bold text-stone-950">
+                      <p className="whitespace-nowrap font-bold text-stone-950">
                         {item.quantity * item.price} DA
                       </p>
                     </div>
@@ -510,19 +523,25 @@ const AdminDashboard = () => {
               </div>
 
               <div className="rounded-[2rem] bg-stone-950 p-6 text-white">
-                <div className="flex justify-between text-white/80">
+                <div className="flex justify-between gap-4 text-white/80">
                   <span>Subtotal</span>
-                  <span>{selectedOrder.subtotalPrice} DA</span>
+                  <span className="whitespace-nowrap">
+                    {selectedOrder.subtotalPrice} DA
+                  </span>
                 </div>
 
-                <div className="mt-3 flex justify-between text-white/60">
+                <div className="mt-3 flex justify-between gap-4 text-white/60">
                   <span>Delivery</span>
-                  <span>{selectedOrder.deliveryPrice} DA</span>
+                  <span className="whitespace-nowrap">
+                    {selectedOrder.deliveryPrice} DA
+                  </span>
                 </div>
 
-                <div className="mt-5 flex justify-between border-t border-white/10 pt-5 text-2xl font-bold">
+                <div className="mt-5 flex justify-between gap-4 border-t border-white/10 pt-5 text-2xl font-bold">
                   <span>Total</span>
-                  <span>{selectedOrder.totalPrice} DA</span>
+                  <span className="whitespace-nowrap">
+                    {selectedOrder.totalPrice} DA
+                  </span>
                 </div>
               </div>
             </div>

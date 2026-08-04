@@ -17,6 +17,21 @@ const Checkout = () => {
   const clearCart = useCartStore((state) => state.clearCart);
   const subtotalPrice = useCartStore((state) => state.getTotalPrice());
 
+  const totalSavings = cartItems.reduce((sum, item) => {
+    const price = Number(item.price || 0);
+    const oldPrice = Number(item.oldPrice || 0);
+    const quantity = Number(item.quantity || 1);
+    const discountPercent = Number(item.discountPercent || 0);
+
+    if (oldPrice > price && discountPercent > 0) {
+      return sum + (oldPrice - price) * quantity;
+    }
+
+    return sum;
+  }, 0);
+
+  const subtotalBeforeDiscount = Number(subtotalPrice || 0) + totalSavings;
+
   const [form, setForm] = useState({
     fullName: user?.name || "",
     phone: user?.phone || "",
@@ -429,28 +444,80 @@ const Checkout = () => {
             <h2 className="text-2xl font-bold text-stone-950">Order Summary</h2>
 
             <div className="mt-6 space-y-4">
-              {cartItems.map((item) => (
-                <div key={item._id} className="flex gap-4">
-                  <img
-                    src={item.images?.[0] || item.image}
-                    alt={item.name}
-                    className="h-16 w-16 rounded-2xl object-cover"
-                  />
+              {cartItems.map((item) => {
+                const price = Number(item.price || 0);
+                const oldPrice = Number(item.oldPrice || 0);
+                const quantity = Number(item.quantity || 1);
+                const discountPercent = Number(item.discountPercent || 0);
+                const hasDiscount = oldPrice > price && discountPercent > 0;
+                const lineTotal = price * quantity;
 
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-stone-950">
-                      {item.name}
-                    </h3>
+                return (
+                  <div key={item._id} className="flex gap-4">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl">
+                      {hasDiscount && (
+                        <span className="absolute left-1 top-1 z-10 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          -{discountPercent}%
+                        </span>
+                      )}
 
-                    <p className="text-sm text-stone-500">
-                      {item.quantity} × {item.price} DA
-                    </p>
+                      <img
+                        src={item.images?.[0] || item.image}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate font-semibold text-stone-950">
+                        {item.name}
+                      </h3>
+
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <p className="text-sm text-stone-500">
+                          {quantity} × {price} DA
+                        </p>
+
+                        {hasDiscount && (
+                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                            Sale
+                          </span>
+                        )}
+                      </div>
+
+                      {hasDiscount && (
+                        <p className="mt-0.5 text-xs text-stone-400">
+                          Old price:{" "}
+                          <span className="line-through">{oldPrice} DA</span>
+                        </p>
+                      )}
+
+                      <p className="mt-1 text-sm font-semibold text-stone-900">
+                        {lineTotal} DA
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="mt-6 space-y-4 border-t border-stone-100 pt-6 text-stone-600">
+              {totalSavings > 0 && (
+                <div className="flex justify-between">
+                  <span>Before discount</span>
+                  <span className="line-through">
+                    {subtotalBeforeDiscount} DA
+                  </span>
+                </div>
+              )}
+
+              {totalSavings > 0 && (
+                <div className="flex justify-between text-red-600">
+                  <span>You save</span>
+                  <span>-{totalSavings} DA</span>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <span>Subtotal</span>
                 <span>{subtotalPrice} DA</span>

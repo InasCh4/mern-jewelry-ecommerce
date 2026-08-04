@@ -11,6 +11,23 @@ const statusStyles = {
   cancelled: "bg-red-50 text-red-600",
 };
 
+const getOrderSavings = (order) => {
+  if (!order?.orderItems?.length) return 0;
+
+  return order.orderItems.reduce((sum, item) => {
+    const price = Number(item.price || 0);
+    const oldPrice = Number(item.oldPrice || 0);
+    const quantity = Number(item.quantity || 1);
+    const discountPercent = Number(item.discountPercent || 0);
+
+    if (oldPrice > price && discountPercent > 0) {
+      return sum + (oldPrice - price) * quantity;
+    }
+
+    return sum;
+  }, 0);
+};
+
 const MyOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,99 +101,152 @@ const MyOrders = () => {
           </div>
         ) : (
           <div className="space-y-5">
-            {orders.map((order) => (
-              <article
-                key={order._id}
-                className="rounded-[2rem] bg-white p-6 shadow-sm"
-              >
-                <div className="flex flex-col gap-4 border-b border-stone-100 pb-5 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="grid h-12 w-12 place-items-center rounded-full bg-stone-100">
-                      <Package size={22} className="text-stone-700" />
-                    </div>
+            {orders.map((order) => {
+              const totalSavings = getOrderSavings(order);
 
-                    <div>
-                      <p className="font-semibold text-stone-950">
-                        Order #{order._id.slice(-6).toUpperCase()}
-                      </p>
+              return (
+                <article
+                  key={order._id}
+                  className="rounded-[2rem] bg-white p-6 shadow-sm"
+                >
+                  <div className="flex flex-col gap-4 border-b border-stone-100 pb-5 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="grid h-12 w-12 place-items-center rounded-full bg-stone-100">
+                        <Package size={22} className="text-stone-700" />
+                      </div>
 
-                      <p className="text-sm text-stone-500">
-                        {new Date(order.createdAt).toLocaleDateString("en-GB")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span
-                      className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${
-                        statusStyles[order.orderStatus] ||
-                        "bg-stone-100 text-stone-600"
-                      }`}
-                    >
-                      {order.orderStatus}
-                    </span>
-
-                    <span className="rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-700">
-                      {order.totalPrice} DA
-                    </span>
-
-                    <Link
-                      to={`/my-orders/${order._id}`}
-                      className="inline-flex items-center gap-2 rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-700"
-                    >
-                      <Eye size={16} />
-                      Details
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="mt-5 space-y-4">
-                  {order.orderItems.map((item) => (
-                    <div
-                      key={item.product}
-                      className="flex items-center gap-4 rounded-2xl bg-stone-50 p-3"
-                    >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-16 w-16 rounded-xl object-cover"
-                      />
-
-                      <div className="flex-1">
+                      <div>
                         <p className="font-semibold text-stone-950">
-                          {item.name}
+                          Order #{order._id.slice(-6).toUpperCase()}
                         </p>
 
                         <p className="text-sm text-stone-500">
-                          Qty: {item.quantity} × {item.price} DA
+                          {new Date(order.createdAt).toLocaleDateString(
+                            "en-GB",
+                          )}
                         </p>
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                <div className="mt-5 grid gap-3 text-sm text-stone-600 md:grid-cols-3">
-                  <p>
-                    <span className="font-medium text-stone-950">
-                      Delivery:
-                    </span>{" "}
-                    {order.deliveryMethod}
-                  </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span
+                        className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${
+                          statusStyles[order.orderStatus] ||
+                          "bg-stone-100 text-stone-600"
+                        }`}
+                      >
+                        {order.orderStatus}
+                      </span>
 
-                  <p>
-                    <span className="font-medium text-stone-950">Payment:</span>{" "}
-                    {order.paymentMethod}
-                  </p>
+                      {totalSavings > 0 && (
+                        <span className="rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-red-600">
+                          Saved {totalSavings} DA
+                        </span>
+                      )}
 
-                  <p>
-                    <span className="font-medium text-stone-950">
-                      Payment status:
-                    </span>{" "}
-                    {order.paymentStatus}
-                  </p>
-                </div>
-              </article>
-            ))}
+                      <span className="whitespace-nowrap rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-700">
+                        {order.totalPrice} DA
+                      </span>
+
+                      <Link
+                        to={`/my-orders/${order._id}`}
+                        className="inline-flex items-center gap-2 rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-700"
+                      >
+                        <Eye size={16} />
+                        Details
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 space-y-4">
+                    {order.orderItems.map((item) => {
+                      const price = Number(item.price || 0);
+                      const oldPrice = Number(item.oldPrice || 0);
+                      const quantity = Number(item.quantity || 1);
+                      const discountPercent = Number(item.discountPercent || 0);
+                      const hasDiscount =
+                        oldPrice > price && discountPercent > 0;
+                      const lineTotal = price * quantity;
+
+                      return (
+                        <div
+                          key={`${order._id}-${item.product}`}
+                          className="flex items-center gap-4 rounded-2xl bg-stone-50 p-3"
+                        >
+                          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                            {hasDiscount && (
+                              <span className="absolute left-1 top-1 z-10 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                -{discountPercent}%
+                              </span>
+                            )}
+
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-semibold text-stone-950">
+                                {item.name}
+                              </p>
+
+                              {hasDiscount && (
+                                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                                  Sale
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="mt-1 text-sm text-stone-500">
+                              Qty: {quantity} × {price} DA
+                            </p>
+
+                            {hasDiscount && (
+                              <p className="mt-0.5 text-xs text-stone-400">
+                                Old price:{" "}
+                                <span className="line-through">
+                                  {oldPrice} DA
+                                </span>
+                              </p>
+                            )}
+                          </div>
+
+                          <p className="whitespace-nowrap text-sm font-semibold text-stone-950">
+                            {lineTotal} DA
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-5 grid gap-3 text-sm text-stone-600 md:grid-cols-3">
+                    <p>
+                      <span className="font-medium text-stone-950">
+                        Delivery:
+                      </span>{" "}
+                      {order.deliveryMethod}
+                    </p>
+
+                    <p>
+                      <span className="font-medium text-stone-950">
+                        Payment:
+                      </span>{" "}
+                      {order.paymentMethod}
+                    </p>
+
+                    <p>
+                      <span className="font-medium text-stone-950">
+                        Payment status:
+                      </span>{" "}
+                      {order.paymentStatus}
+                    </p>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

@@ -256,6 +256,7 @@ const AdminOrders = () => {
                 className="rounded-2xl border border-stone-200 px-4 py-3 capitalize outline-none focus:border-stone-900"
               >
                 <option value="all">All status</option>
+
                 {orderStatuses.map((status) => (
                   <option key={status} value={status}>
                     {status}
@@ -266,16 +267,20 @@ const AdminOrders = () => {
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[1050px] border-collapse">
+            <table className="w-full min-w-[1250px] border-collapse">
               <thead>
                 <tr className="text-left text-sm text-stone-400">
-                  <th className="py-4 font-medium">Order</th>
-                  <th className="py-4 font-medium">Customer</th>
-                  <th className="py-4 font-medium">Location</th>
-                  <th className="py-4 font-medium">Total</th>
-                  <th className="py-4 font-medium">Order status</th>
-                  <th className="py-4 font-medium">Payment</th>
-                  <th className="py-4 text-right font-medium">Action</th>
+                  <th className="w-[130px] py-4 pr-5 font-medium">Order</th>
+                  <th className="w-[230px] py-4 pr-5 font-medium">Customer</th>
+                  <th className="w-[180px] py-4 pr-5 font-medium">Location</th>
+                  <th className="w-[130px] py-4 pr-6 font-medium">Total</th>
+                  <th className="w-[170px] py-4 pr-5 font-medium">
+                    Order status
+                  </th>
+                  <th className="w-[150px] py-4 pr-5 font-medium">Payment</th>
+                  <th className="w-[120px] py-4 text-right font-medium">
+                    Action
+                  </th>
                 </tr>
               </thead>
 
@@ -285,17 +290,17 @@ const AdminOrders = () => {
                     key={order._id}
                     className="border-t border-stone-100 text-sm"
                   >
-                    <td className="py-5 pr-4">
+                    <td className="py-5 pr-5">
                       <p className="font-bold text-stone-950">
                         #{order._id.slice(-6).toUpperCase()}
                       </p>
 
-                      <p className="mt-1 text-xs text-stone-500">
+                      <p className="mt-1 whitespace-nowrap text-xs text-stone-500">
                         {new Date(order.createdAt).toLocaleDateString("en-GB")}
                       </p>
                     </td>
 
-                    <td className="py-5 pr-4">
+                    <td className="py-5 pr-5">
                       <p className="font-semibold text-stone-950">
                         {order.customerInfo?.fullName}
                       </p>
@@ -304,23 +309,28 @@ const AdminOrders = () => {
                         {order.customerInfo?.phone}
                       </p>
 
-                      <p className="mt-1 text-xs text-stone-400">
+                      <p className="mt-1 max-w-[210px] truncate text-xs text-stone-400">
                         User: {order.user?.email || "Old order / no user"}
                       </p>
                     </td>
 
-                    <td className="py-5 pr-4 text-stone-600">
-                      <p>{order.customerInfo?.wilaya}</p>
+                    <td className="py-5 pr-5 text-stone-600">
+                      <p className="font-medium">
+                        {order.customerInfo?.wilaya}
+                      </p>
+
                       <p className="text-xs text-stone-400">
                         {order.customerInfo?.commune}
                       </p>
                     </td>
 
-                    <td className="py-5 pr-4 font-bold text-stone-950">
-                      {order.totalPrice} DA
+                    <td className="w-[130px] py-5 pr-6">
+                      <span className="block whitespace-nowrap text-base font-semibold text-stone-950">
+                        {order.totalPrice} DA
+                      </span>
                     </td>
 
-                    <td className="py-5 pr-4">
+                    <td className="py-5 pr-5">
                       <select
                         value={order.orderStatus}
                         disabled={updatingId === order._id}
@@ -329,7 +339,7 @@ const AdminOrders = () => {
                             orderStatus: e.target.value,
                           })
                         }
-                        className={`rounded-full px-3 py-2 text-xs font-semibold capitalize outline-none ${
+                        className={`min-w-[135px] rounded-full px-3 py-2 text-xs font-semibold capitalize outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
                           statusStyles[order.orderStatus] ||
                           "bg-stone-100 text-stone-600"
                         }`}
@@ -342,7 +352,7 @@ const AdminOrders = () => {
                       </select>
                     </td>
 
-                    <td className="py-5 pr-4">
+                    <td className="py-5 pr-5">
                       <select
                         value={order.paymentStatus}
                         disabled={updatingId === order._id}
@@ -351,7 +361,7 @@ const AdminOrders = () => {
                             paymentStatus: e.target.value,
                           })
                         }
-                        className={`rounded-full px-3 py-2 text-xs font-semibold capitalize outline-none ${
+                        className={`min-w-[115px] rounded-full px-3 py-2 text-xs font-semibold capitalize outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
                           paymentStyles[order.paymentStatus] ||
                           "bg-stone-100 text-stone-600"
                         }`}
@@ -364,11 +374,11 @@ const AdminOrders = () => {
                       </select>
                     </td>
 
-                    <td className="py-5 pr-4 text-right">
+                    <td className="py-5 text-right">
                       <button
                         type="button"
                         onClick={() => setSelectedOrder(order)}
-                        className="rounded-full border border-stone-200 px-4 py-2 text-sm text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                        className="rounded-full border border-stone-200 px-5 py-2 text-sm text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
                       >
                         Details
                       </button>
@@ -464,8 +474,8 @@ const AdminOrders = () => {
                       className="h-16 w-16 rounded-xl object-cover"
                     />
 
-                    <div className="flex-1">
-                      <p className="font-semibold text-stone-950">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-stone-950">
                         {item.name}
                       </p>
 
@@ -478,19 +488,25 @@ const AdminOrders = () => {
               </div>
 
               <div className="rounded-2xl bg-stone-950 p-5 text-white">
-                <div className="flex justify-between text-sm text-stone-300">
+                <div className="flex justify-between gap-4 text-sm text-stone-300">
                   <span>Subtotal</span>
-                  <span>{selectedOrder.subtotalPrice} DA</span>
+                  <span className="whitespace-nowrap">
+                    {selectedOrder.subtotalPrice} DA
+                  </span>
                 </div>
 
-                <div className="mt-3 flex justify-between text-sm text-stone-300">
+                <div className="mt-3 flex justify-between gap-4 text-sm text-stone-300">
                   <span>Delivery</span>
-                  <span>{selectedOrder.deliveryPrice} DA</span>
+                  <span className="whitespace-nowrap">
+                    {selectedOrder.deliveryPrice} DA
+                  </span>
                 </div>
 
-                <div className="mt-4 flex justify-between border-t border-white/10 pt-4 text-lg font-bold">
+                <div className="mt-4 flex justify-between gap-4 border-t border-white/10 pt-4 text-lg font-bold">
                   <span>Total</span>
-                  <span>{selectedOrder.totalPrice} DA</span>
+                  <span className="whitespace-nowrap">
+                    {selectedOrder.totalPrice} DA
+                  </span>
                 </div>
               </div>
             </div>

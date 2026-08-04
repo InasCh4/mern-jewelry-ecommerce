@@ -39,6 +39,7 @@ const createProduct = async (req, res) => {
       name,
       description,
       price,
+      oldPrice,
       category,
       images,
       stock,
@@ -52,13 +53,36 @@ const createProduct = async (req, res) => {
       });
     }
 
+    const numericPrice = Number(price);
+    const numericOldPrice = Number(oldPrice || 0);
+    const numericStock = Number(stock || 0);
+
+    if (numericPrice <= 0) {
+      return res.status(400).json({
+        message: "Price must be greater than 0.",
+      });
+    }
+
+    if (numericOldPrice < 0) {
+      return res.status(400).json({
+        message: "Old price cannot be negative.",
+      });
+    }
+
+    if (numericStock < 0) {
+      return res.status(400).json({
+        message: "Stock cannot be negative.",
+      });
+    }
+
     const product = await Product.create({
-      name,
-      description,
-      price,
+      name: name.trim(),
+      description: description.trim(),
+      price: numericPrice,
+      oldPrice: numericOldPrice,
       category,
       images,
-      stock,
+      stock: numericStock,
       material,
       isFeatured,
     });
@@ -82,12 +106,46 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    product.name = req.body.name ?? product.name;
-    product.description = req.body.description ?? product.description;
-    product.price = req.body.price ?? product.price;
+    if (req.body.price !== undefined) {
+      const numericPrice = Number(req.body.price);
+
+      if (numericPrice <= 0) {
+        return res.status(400).json({
+          message: "Price must be greater than 0.",
+        });
+      }
+
+      product.price = numericPrice;
+    }
+
+    if (req.body.oldPrice !== undefined) {
+      const numericOldPrice = Number(req.body.oldPrice || 0);
+
+      if (numericOldPrice < 0) {
+        return res.status(400).json({
+          message: "Old price cannot be negative.",
+        });
+      }
+
+      product.oldPrice = numericOldPrice;
+    }
+
+    if (req.body.stock !== undefined) {
+      const numericStock = Number(req.body.stock || 0);
+
+      if (numericStock < 0) {
+        return res.status(400).json({
+          message: "Stock cannot be negative.",
+        });
+      }
+
+      product.stock = numericStock;
+    }
+
+    product.name = req.body.name?.trim() ?? product.name;
+    product.description = req.body.description?.trim() ?? product.description;
     product.category = req.body.category ?? product.category;
     product.images = req.body.images ?? product.images;
-    product.stock = req.body.stock ?? product.stock;
     product.material = req.body.material ?? product.material;
     product.isFeatured = req.body.isFeatured ?? product.isFeatured;
 

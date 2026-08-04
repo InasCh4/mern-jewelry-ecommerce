@@ -47,6 +47,20 @@ const productSchema = new mongoose.Schema(
     price: {
       type: Number,
       required: true,
+      min: 0,
+    },
+
+    oldPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    discountPercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
     },
 
     category: {
@@ -66,6 +80,7 @@ const productSchema = new mongoose.Schema(
       type: Number,
       required: true,
       default: 0,
+      min: 0,
     },
 
     material: {
@@ -96,5 +111,15 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+productSchema.pre("save", function () {
+  if (this.oldPrice && this.oldPrice > this.price) {
+    const discount = ((this.oldPrice - this.price) / this.oldPrice) * 100;
+    this.discountPercent = Math.round(discount);
+  } else {
+    this.oldPrice = 0;
+    this.discountPercent = 0;
+  }
+});
 
 module.exports = mongoose.model("Product", productSchema);

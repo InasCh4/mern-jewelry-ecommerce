@@ -61,6 +61,12 @@ const ProductDetails = () => {
   const averageRating = Number(product?.rating || 0);
   const numReviews = Number(product?.numReviews || 0);
 
+  const price = Number(product?.price || 0);
+  const oldPrice = Number(product?.oldPrice || 0);
+  const discountPercent = Number(product?.discountPercent || 0);
+
+  const hasDiscount = oldPrice > price && discountPercent > 0;
+
   const renderStars = (value, size = 18) => {
     const roundedValue = Math.round(Number(value || 0));
 
@@ -254,6 +260,12 @@ const ProductDetails = () => {
 
         <div className="grid gap-8 rounded-[2rem] bg-white p-5 shadow-sm md:grid-cols-[1fr_0.95fr] md:p-7">
           <div className="relative overflow-hidden rounded-[1.5rem] bg-stone-100">
+            {hasDiscount && (
+              <span className="absolute left-4 top-4 z-10 rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+                -{discountPercent}%
+              </span>
+            )}
+
             <button
               type="button"
               onClick={handleToggleWishlist}
@@ -276,9 +288,17 @@ const ProductDetails = () => {
           </div>
 
           <div className="flex flex-col justify-center">
-            <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
-              {product.category}
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
+                {product.category}
+              </p>
+
+              {hasDiscount && (
+                <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+                  Sale
+                </span>
+              )}
+            </div>
 
             <h1 className="mt-3 max-w-xl text-3xl font-bold leading-tight text-stone-950 md:text-4xl">
               {product.name}
@@ -300,9 +320,25 @@ const ProductDetails = () => {
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-4">
-              <span className="text-3xl font-bold text-stone-950">
-                {product.price} DA
-              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="whitespace-nowrap text-3xl font-semibold text-stone-950">
+                    {price} DA
+                  </span>
+
+                  {hasDiscount && (
+                    <span className="rounded-full bg-red-50 px-3 py-1 text-sm font-semibold text-red-600">
+                      -{discountPercent}%
+                    </span>
+                  )}
+                </div>
+
+                {hasDiscount && (
+                  <p className="mt-1 whitespace-nowrap text-sm text-stone-400 line-through">
+                    {oldPrice} DA
+                  </p>
+                )}
+              </div>
 
               <span
                 className={`rounded-full px-4 py-2 text-sm ${

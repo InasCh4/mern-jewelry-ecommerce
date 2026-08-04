@@ -119,75 +119,106 @@ const Wishlist = () => {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {cleanWishlistItems.map((product) => (
-            <div
-              key={product._id}
-              className="group overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-            >
-              <Link to={`/product/${product._id}`} className="block">
-                <div className="h-52 overflow-hidden bg-stone-100">
-                  <img
-                    src={product.images?.[0] || product.image}
-                    alt={product.name}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                </div>
+          {cleanWishlistItems.map((product) => {
+            const price = Number(product.price || 0);
+            const oldPrice = Number(product.oldPrice || 0);
+            const discountPercent = Number(product.discountPercent || 0);
+            const hasDiscount = oldPrice > price && discountPercent > 0;
+            const isOutOfStock = product.stock <= 0;
 
-                <div className="p-4 pb-0">
-                  <p className="text-[11px] uppercase tracking-[0.3em] text-stone-400">
-                    {product.category}
-                  </p>
-
-                  <h3 className="mt-2 text-lg font-semibold text-stone-900">
-                    {product.name}
-                  </h3>
-
-                  <p className="mt-2 line-clamp-2 text-sm text-stone-500">
-                    {product.description}
-                  </p>
-                </div>
-              </Link>
-
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-bold text-stone-900">
-                    {product.price} DA
+            return (
+              <div
+                key={product._id}
+                className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+              >
+                {hasDiscount && (
+                  <span className="absolute left-3 top-3 z-10 rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                    -{discountPercent}%
                   </span>
+                )}
 
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      product.stock > 0
-                        ? "bg-green-50 text-green-600"
-                        : "bg-red-50 text-red-600"
-                    }`}
-                  >
-                    {product.stock > 0 ? "In stock" : "Out"}
-                  </span>
-                </div>
+                <Link to={`/product/${product._id}`} className="block">
+                  <div className="h-52 overflow-hidden bg-stone-100">
+                    <img
+                      src={product.images?.[0] || product.image}
+                      alt={product.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </div>
 
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleAddToCart(product)}
-                    disabled={product.stock <= 0}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-stone-950 px-4 py-2 text-sm text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
-                  >
-                    <ShoppingBag size={16} />
-                    Add
-                  </button>
+                  <div className="p-4 pb-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[11px] uppercase tracking-[0.3em] text-stone-400">
+                        {product.category}
+                      </p>
 
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(product)}
-                    disabled={removingId === product._id}
-                    className="grid h-10 w-10 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Trash2 size={17} />
-                  </button>
+                      {hasDiscount && (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                          Sale
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="mt-2 text-lg font-semibold text-stone-900">
+                      {product.name}
+                    </h3>
+
+                    <p className="mt-2 line-clamp-2 text-sm text-stone-500">
+                      {product.description}
+                    </p>
+                  </div>
+                </Link>
+
+                <div className="mt-auto p-4">
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <p className="whitespace-nowrap text-lg font-semibold text-stone-900">
+                        {price} DA
+                      </p>
+
+                      {hasDiscount && (
+                        <p className="mt-0.5 whitespace-nowrap text-xs text-stone-400 line-through">
+                          {oldPrice} DA
+                        </p>
+                      )}
+                    </div>
+
+                    <span
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                        isOutOfStock
+                          ? "bg-red-50 text-red-600"
+                          : "bg-green-50 text-green-600"
+                      }`}
+                    >
+                      {isOutOfStock ? "Out" : "In stock"}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAddToCart(product)}
+                      disabled={isOutOfStock}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-stone-950 px-4 py-2 text-sm text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+                    >
+                      <ShoppingBag size={16} />
+                      {isOutOfStock ? "Out" : "Add"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(product)}
+                      disabled={removingId === product._id}
+                      className="grid h-10 w-10 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label="Remove from wishlist"
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </main>

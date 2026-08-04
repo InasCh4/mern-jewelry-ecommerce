@@ -23,28 +23,59 @@ const createOrder = async (req, res) => {
     const safeOrderItems = [];
 
     for (const item of orderItems) {
-      const product = await Product.findById(item._id || item.product);
+      const productId = item._id || item.product;
+      const quantity = Number(item.quantity || 0);
 
-      if (!product) {
-        return res.status(404).json({
-          message: `Product not found: ${item.name}`,
+      if (!productId) {
+        return res.status(400).json({
+          message: "Product id is missing.",
         });
       }
 
-      if (product.stock < item.quantity) {
+      if (!quantity || quantity < 1) {
+        return res.status(400).json({
+          message: "Quantity must be at least 1.",
+        });
+      }
+
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        return res.status(404).json({
+          message: `Product not found: ${item.name || productId}`,
+        });
+      }
+
+      if (product.stock < quantity) {
         return res.status(400).json({
           message: `${product.name} is out of stock`,
         });
       }
 
-      subtotalPrice += product.price * item.quantity;
+      const price = Number(product.price || 0);
+      const oldPrice = Number(product.oldPrice || 0);
+
+      const discountPercent =
+        oldPrice > price
+          ? Number(
+              product.discountPercent ||
+                Math.round(((oldPrice - price) / oldPrice) * 100),
+            )
+          : 0;
+
+      const safeOldPrice = oldPrice > price ? oldPrice : 0;
+      const safeDiscountPercent = safeOldPrice > 0 ? discountPercent : 0;
+
+      subtotalPrice += price * quantity;
 
       safeOrderItems.push({
         product: product._id,
         name: product.name,
         image: product.images?.[0],
-        price: product.price,
-        quantity: item.quantity,
+        price,
+        oldPrice: safeOldPrice,
+        discountPercent: safeDiscountPercent,
+        quantity,
       });
     }
 
@@ -53,7 +84,16 @@ const createOrder = async (req, res) => {
 
     const order = await Order.create({
       user: req.user._id,
-      customerInfo,
+
+      customerInfo: {
+        fullName: customerInfo.fullName?.trim(),
+        phone: customerInfo.phone?.trim(),
+        wilaya: customerInfo.wilaya,
+        commune: customerInfo.commune,
+        address: customerInfo.address?.trim(),
+        note: customerInfo.note?.trim() || "",
+      },
+
       orderItems: safeOrderItems,
       subtotalPrice,
       deliveryPrice: finalDeliveryPrice,
@@ -208,7 +248,6 @@ const cancelOrder = async (req, res) => {
 
     const cancelledOrder = await order.save();
 
-    // Restore product stock
     for (const item of order.orderItems) {
       await Product.findByIdAndUpdate(item.product, {
         $inc: { stock: item.quantity },

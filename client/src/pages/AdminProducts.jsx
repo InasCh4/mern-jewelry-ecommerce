@@ -18,6 +18,7 @@ const emptyForm = {
   name: "",
   description: "",
   price: "",
+  oldPrice: "",
   category: "rings",
   imageUrl: "",
   stock: "",
@@ -46,6 +47,17 @@ const AdminProducts = () => {
 
   const imageInputRef = useRef(null);
 
+  const discountPreview = useMemo(() => {
+    const price = Number(form.price || 0);
+    const oldPrice = Number(form.oldPrice || 0);
+
+    if (oldPrice > price && price > 0) {
+      return Math.round(((oldPrice - price) / oldPrice) * 100);
+    }
+
+    return 0;
+  }, [form.price, form.oldPrice]);
+
   const fetchProducts = async () => {
     try {
       const res = await api.get("/products");
@@ -71,6 +83,7 @@ const AdminProducts = () => {
       inStock: products.filter((product) => product.stock > 0).length,
       outOfStock: products.filter((product) => product.stock <= 0).length,
       featured: products.filter((product) => product.isFeatured).length,
+      onSale: products.filter((product) => product.discountPercent > 0).length,
     };
   }, [products]);
 
@@ -140,6 +153,7 @@ const AdminProducts = () => {
       name: product.name || "",
       description: product.description || "",
       price: product.price || "",
+      oldPrice: product.oldPrice || "",
       category: product.category || "rings",
       imageUrl: product.images?.[0] || "",
       stock: product.stock || "",
@@ -232,6 +246,23 @@ const AdminProducts = () => {
       return;
     }
 
+    if (Number(form.oldPrice || 0) < 0) {
+      const message = "Old price cannot be negative.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (
+      Number(form.oldPrice || 0) > 0 &&
+      Number(form.oldPrice) <= Number(form.price)
+    ) {
+      const message = "Old price must be greater than current price.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     if (Number(form.stock || 0) < 0) {
       const message = "Stock cannot be negative.";
       setError(message);
@@ -243,6 +274,7 @@ const AdminProducts = () => {
       name: form.name.trim(),
       description: form.description.trim(),
       price: Number(form.price),
+      oldPrice: Number(form.oldPrice || 0),
       category: form.category,
       images: [form.imageUrl],
       stock: Number(form.stock || 0),
@@ -403,7 +435,7 @@ const AdminProducts = () => {
           </Link>
         </div>
 
-        <div className="mb-6 grid gap-5 md:grid-cols-4">
+        <div className="mb-6 grid gap-5 md:grid-cols-5">
           <div className="rounded-[2rem] bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Total products</p>
             <h2 className="mt-2 text-3xl font-bold text-stone-950">
@@ -422,6 +454,13 @@ const AdminProducts = () => {
             <p className="text-sm text-stone-500">Out of stock</p>
             <h2 className="mt-2 text-3xl font-bold text-red-600">
               {stats.outOfStock}
+            </h2>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">On sale</p>
+            <h2 className="mt-2 text-3xl font-bold text-red-500">
+              {stats.onSale}
             </h2>
           </div>
 
@@ -493,7 +532,7 @@ const AdminProducts = () => {
 
             <div>
               <label className="text-sm font-medium text-stone-700">
-                Price DA
+                Current price DA
               </label>
 
               <input
@@ -504,6 +543,27 @@ const AdminProducts = () => {
                 className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900"
                 placeholder="4500"
               />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-stone-700">
+                Old price DA
+              </label>
+
+              <input
+                type="number"
+                name="oldPrice"
+                value={form.oldPrice}
+                onChange={handleChange}
+                className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900"
+                placeholder="Leave empty if no discount"
+              />
+
+              {discountPreview > 0 && (
+                <p className="mt-2 w-fit rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+                  Preview: -{discountPreview}%
+                </p>
+              )}
             </div>
 
             <div>
@@ -700,7 +760,7 @@ const AdminProducts = () => {
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[980px] border-collapse">
+            <table className="w-full min-w-[1180px] border-collapse">
               <thead>
                 <tr className="text-left text-sm text-stone-400">
                   <th className="py-4 font-medium">Product</th>
@@ -742,13 +802,31 @@ const AdminProducts = () => {
                       {product.category}
                     </td>
 
-                    <td className="py-5 pr-4 font-bold text-stone-950">
-                      {product.price} DA
+                    <td className="py-5 pr-6">
+                      <div className="min-w-[150px]">
+                        <div className="flex items-center gap-2">
+                          <span className="whitespace-nowrap text-base font-semibold text-stone-950">
+                            {product.price} DA
+                          </span>
+
+                          {product.discountPercent > 0 && (
+                            <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
+                              -{product.discountPercent}%
+                            </span>
+                          )}
+                        </div>
+
+                        {product.oldPrice > product.price && (
+                          <span className="mt-1 block whitespace-nowrap text-xs text-stone-400 line-through">
+                            {product.oldPrice} DA
+                          </span>
+                        )}
+                      </div>
                     </td>
 
-                    <td className="py-5 pr-4">
+                    <td className="py-5 pr-6">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        className={`inline-flex min-w-[105px] items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${
                           product.stock > 0
                             ? "bg-green-50 text-green-600"
                             : "bg-red-50 text-red-600"
