@@ -201,7 +201,12 @@ const AdminDashboard = () => {
                 >
                   Manage Orders
                 </Link>
-
+                <Link
+                  to="/admin/delivery-rates"
+                  className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+                >
+                  Delivery Prices
+                </Link>
                 <button
                   type="button"
                   onClick={fetchOrders}

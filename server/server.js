@@ -8,6 +8,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const authRoutes = require("./routes/authRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
+const deliveryRateRoutes = require("./routes/deliveryRateRoutes");
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/delivery-rates", deliveryRateRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running 💎");

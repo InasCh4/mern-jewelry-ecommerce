@@ -66,6 +66,11 @@ const orderSchema = new mongoose.Schema(
         required: true,
       },
 
+      wilayaCode: {
+        type: String,
+        default: "",
+      },
+
       commune: {
         type: String,
         required: true,

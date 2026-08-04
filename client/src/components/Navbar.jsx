@@ -88,6 +88,14 @@ const Navbar = () => {
     setSearchQuery("");
   };
 
+  const goToSale = () => {
+    navigate({
+      pathname: "/",
+      search: "?sale=1",
+      hash: "#products",
+    });
+  };
+
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
@@ -156,7 +164,7 @@ const Navbar = () => {
             ECLORA
           </Link>
 
-          <div className="hidden items-center gap-10 text-[15px] text-stone-600 md:flex">
+          <div className="hidden items-center gap-8 text-[15px] text-stone-600 md:flex">
             <a href="/#home" className="transition hover:text-stone-900">
               Home
             </a>
@@ -164,6 +172,15 @@ const Navbar = () => {
             <a href="/#products" className="transition hover:text-stone-900">
               Shop
             </a>
+
+            <button
+              type="button"
+              onClick={goToSale}
+              className="group inline-flex items-center gap-2 font-medium text-red-500 transition hover:text-red-600"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500 transition group-hover:scale-125" />
+              Sale
+            </button>
 
             <a href="/#collections" className="transition hover:text-stone-900">
               Collections
@@ -184,6 +201,14 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-4 text-stone-700">
+            <button
+              type="button"
+              onClick={goToSale}
+              className="text-sm font-semibold text-red-500 transition hover:text-red-600 md:hidden"
+            >
+              Sale
+            </button>
+
             <button
               type="button"
               onClick={openSearch}
@@ -325,34 +350,59 @@ const Navbar = () => {
                 </p>
               ) : filteredProducts.length > 0 ? (
                 <div className="space-y-3">
-                  {filteredProducts.map((product) => (
-                    <button
-                      key={product._id}
-                      type="button"
-                      onClick={() => handleResultClick(product._id)}
-                      className="flex w-full items-center gap-4 rounded-2xl p-3 text-left transition hover:bg-stone-50"
-                    >
-                      <img
-                        src={product.images?.[0] || product.image}
-                        alt={product.name}
-                        className="h-16 w-16 rounded-xl object-cover"
-                      />
+                  {filteredProducts.map((product) => {
+                    const price = Number(product.price || 0);
+                    const oldPrice = Number(product.oldPrice || 0);
+                    const discountPercent = Number(
+                      product.discountPercent || 0,
+                    );
+                    const hasDiscount = oldPrice > price && discountPercent > 0;
 
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-semibold text-stone-950">
-                          {product.name}
-                        </p>
+                    return (
+                      <button
+                        key={product._id}
+                        type="button"
+                        onClick={() => handleResultClick(product._id)}
+                        className="flex w-full items-center gap-4 rounded-2xl p-3 text-left transition hover:bg-stone-50"
+                      >
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
+                          {hasDiscount && (
+                            <span className="absolute left-1 top-1 z-10 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                              -{discountPercent}%
+                            </span>
+                          )}
 
-                        <p className="mt-1 truncate text-sm text-stone-500">
-                          {product.category} · {product.material || "Jewelry"}
-                        </p>
-                      </div>
+                          <img
+                            src={product.images?.[0] || product.image}
+                            alt={product.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
 
-                      <p className="font-bold text-stone-950">
-                        {product.price} DA
-                      </p>
-                    </button>
-                  ))}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold text-stone-950">
+                            {product.name}
+                          </p>
+
+                          <p className="mt-1 truncate text-sm text-stone-500">
+                            {product.category} · {product.material || "Jewelry"}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="whitespace-nowrap font-semibold text-stone-950">
+                            {price} DA
+                          </p>
+
+                          {hasDiscount && (
+                            <p className="mt-0.5 whitespace-nowrap text-xs text-stone-400 line-through">
+                              {oldPrice} DA
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="py-10 text-center">

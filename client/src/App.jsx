@@ -21,6 +21,7 @@ import Wishlist from "./pages/Wishlist";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProducts from "./pages/AdminProducts";
 import AdminOrders from "./pages/AdminOrders";
+import AdminDeliveryRates from "./pages/AdminDeliveryRates";
 
 function LandingPage() {
   return (
@@ -66,7 +67,14 @@ function App() {
           }
         />
 
-        <Route path="/order-success/:id" element={<OrderSuccess />} />
+        <Route
+          path="/order-success/:id"
+          element={
+            <ProtectedRoute>
+              <OrderSuccess />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="/login" element={<Login />} />
 
@@ -131,6 +139,15 @@ function App() {
           element={
             <AdminRoute>
               <AdminOrders />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/delivery-rates"
+          element={
+            <AdminRoute>
+              <AdminDeliveryRates />
             </AdminRoute>
           }
         />

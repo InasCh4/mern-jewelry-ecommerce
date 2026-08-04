@@ -1,21 +1,48 @@
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const DeliveryRate = require("../models/DeliveryRate");
+const { ensureDeliveryRates } = require("./deliveryRateController");
 
 // POST /api/orders
 // Private user
 const createOrder = async (req, res) => {
   try {
-    const {
-      customerInfo,
-      orderItems,
-      deliveryPrice,
-      paymentMethod,
-      deliveryMethod,
-    } = req.body;
+    const { customerInfo, orderItems, paymentMethod, deliveryMethod } =
+      req.body;
 
     if (!customerInfo || !orderItems || orderItems.length === 0) {
       return res.status(400).json({
         message: "Order data is missing",
+      });
+    }
+
+    if (!customerInfo.fullName?.trim()) {
+      return res.status(400).json({
+        message: "Full name is required.",
+      });
+    }
+
+    if (!customerInfo.phone?.trim()) {
+      return res.status(400).json({
+        message: "Phone number is required.",
+      });
+    }
+
+    if (!customerInfo.wilaya) {
+      return res.status(400).json({
+        message: "Wilaya is required.",
+      });
+    }
+
+    if (!customerInfo.commune) {
+      return res.status(400).json({
+        message: "Commune is required.",
+      });
+    }
+
+    if (!customerInfo.address?.trim()) {
+      return res.status(400).json({
+        message: "Address is required.",
       });
     }
 
@@ -79,18 +106,52 @@ const createOrder = async (req, res) => {
       });
     }
 
-    const finalDeliveryPrice = Number(deliveryPrice || 0);
+    await ensureDeliveryRates();
+
+    const safeDeliveryMethod = deliveryMethod === "office" ? "office" : "home";
+    const rawWilayaCode = String(customerInfo.wilayaCode || "").trim();
+
+    if (!rawWilayaCode) {
+      return res.status(400).json({
+        message: "Wilaya code is missing.",
+      });
+    }
+
+    const safeWilayaCode = rawWilayaCode.padStart(2, "0");
+
+    const deliveryRate = await DeliveryRate.findOne({
+      wilayaCode: safeWilayaCode,
+      isActive: true,
+    });
+
+    if (!deliveryRate) {
+      return res.status(400).json({
+        message: "Delivery price is not configured for this wilaya.",
+      });
+    }
+
+    const finalDeliveryPrice =
+      safeDeliveryMethod === "office"
+        ? Number(deliveryRate.officePrice || 0)
+        : Number(deliveryRate.homePrice || 0);
+
     const totalPrice = subtotalPrice + finalDeliveryPrice;
+
+    const allowedPaymentMethods = ["cash", "baridimob", "card"];
+    const safePaymentMethod = allowedPaymentMethods.includes(paymentMethod)
+      ? paymentMethod
+      : "cash";
 
     const order = await Order.create({
       user: req.user._id,
 
       customerInfo: {
-        fullName: customerInfo.fullName?.trim(),
-        phone: customerInfo.phone?.trim(),
+        fullName: customerInfo.fullName.trim(),
+        phone: customerInfo.phone.trim(),
         wilaya: customerInfo.wilaya,
+        wilayaCode: safeWilayaCode,
         commune: customerInfo.commune,
-        address: customerInfo.address?.trim(),
+        address: customerInfo.address.trim(),
         note: customerInfo.note?.trim() || "",
       },
 
@@ -98,8 +159,8 @@ const createOrder = async (req, res) => {
       subtotalPrice,
       deliveryPrice: finalDeliveryPrice,
       totalPrice,
-      paymentMethod,
-      deliveryMethod,
+      paymentMethod: safePaymentMethod,
+      deliveryMethod: safeDeliveryMethod,
     });
 
     for (const item of safeOrderItems) {

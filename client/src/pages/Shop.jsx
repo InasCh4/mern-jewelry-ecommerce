@@ -37,9 +37,24 @@ const Shop = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const search = params.get("search") || "";
+    const sale = params.get("sale") || "";
 
     setSearchQuery(search);
-  }, [location.search]);
+    setSaleFilter(sale === "1" ? "sale" : "all");
+
+    if (location.hash === "#products") {
+      setTimeout(() => {
+        const productsSection = document.getElementById("products");
+
+        if (productsSection) {
+          productsSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      }, 100);
+    }
+  }, [location.search, location.hash]);
 
   const categories = useMemo(() => {
     const uniqueCategories = products
@@ -124,7 +139,7 @@ const Shop = () => {
   }
 
   return (
-    <section id="products" className="bg-stone-50 px-6 py-16">
+    <section id="products" className="scroll-mt-24 bg-stone-50 px-6 py-16">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 text-center">
           <p className="text-sm uppercase tracking-[0.4em] text-stone-400">

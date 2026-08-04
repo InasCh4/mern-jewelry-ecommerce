@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Select from "react-select";
 import toast from "react-hot-toast";
@@ -16,6 +16,9 @@ const Checkout = () => {
   const cartItems = useCartStore((state) => state.cartItems);
   const clearCart = useCartStore((state) => state.clearCart);
   const subtotalPrice = useCartStore((state) => state.getTotalPrice());
+
+  const [deliveryRates, setDeliveryRates] = useState([]);
+  const [deliveryLoading, setDeliveryLoading] = useState(true);
 
   const totalSavings = cartItems.reduce((sum, item) => {
     const price = Number(item.price || 0);
@@ -46,9 +49,29 @@ const Checkout = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const fetchDeliveryRates = async () => {
+    try {
+      setDeliveryLoading(true);
+
+      const res = await api.get("/delivery-rates");
+      setDeliveryRates(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Could not load delivery prices.",
+      );
+    } finally {
+      setDeliveryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDeliveryRates();
+  }, []);
+
   const wilayaOptions = WILAYAS.map((wilaya) => ({
     value: wilaya.name,
     label: `${wilaya.code} - ${wilaya.name}`,
+    code: String(wilaya.code || "").padStart(2, "0"),
   }));
 
   const communeOptions = getCommunesByWilayaName(form.wilaya);
@@ -59,7 +82,16 @@ const Checkout = () => {
   const selectedCommune =
     communeOptions.find((option) => option.value === form.commune) || null;
 
-  const deliveryPrice = form.deliveryMethod === "home" ? 500 : 300;
+  const selectedDeliveryRate = selectedWilaya
+    ? deliveryRates.find((rate) => rate.wilayaCode === selectedWilaya.code)
+    : null;
+
+  const homeDeliveryPrice = Number(selectedDeliveryRate?.homePrice || 0);
+  const officeDeliveryPrice = Number(selectedDeliveryRate?.officePrice || 0);
+
+  const deliveryPrice =
+    form.deliveryMethod === "office" ? officeDeliveryPrice : homeDeliveryPrice;
+
   const totalPrice = subtotalPrice + deliveryPrice;
 
   const selectStyles = {
@@ -147,8 +179,12 @@ const Checkout = () => {
       return "Phone number is required.";
     }
 
-    if (!form.wilaya) {
+    if (!form.wilaya || !selectedWilaya?.code) {
       return "Please choose your wilaya.";
+    }
+
+    if (!selectedDeliveryRate) {
+      return "Delivery price is not configured for this wilaya.";
     }
 
     if (!form.commune) {
@@ -188,6 +224,7 @@ const Checkout = () => {
           fullName: form.fullName.trim(),
           phone: form.phone.trim(),
           wilaya: form.wilaya,
+          wilayaCode: selectedWilaya.code,
           commune: form.commune,
           address: form.address.trim(),
           note: form.note.trim(),
@@ -200,7 +237,6 @@ const Checkout = () => {
 
         deliveryMethod: form.deliveryMethod,
         paymentMethod: form.paymentMethod,
-        deliveryPrice,
       };
 
       const res = await api.post("/orders", payload);
@@ -335,6 +371,18 @@ const Checkout = () => {
                     styles={selectStyles}
                   />
                 </div>
+
+                {form.wilaya && selectedDeliveryRate && (
+                  <p className="mt-2 text-xs text-stone-500">
+                    Delivery price loaded from admin settings.
+                  </p>
+                )}
+
+                {form.wilaya && !selectedDeliveryRate && !deliveryLoading && (
+                  <p className="mt-2 text-xs text-red-500">
+                    Delivery price is not configured for this wilaya.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -414,11 +462,31 @@ const Checkout = () => {
                   name="deliveryMethod"
                   value={form.deliveryMethod}
                   onChange={handleChange}
-                  className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900"
+                  disabled={!selectedDeliveryRate}
+                  className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
                 >
-                  <option value="home">Home delivery - 500 DA</option>
-                  <option value="office">Delivery office - 300 DA</option>
+                  <option value="home">
+                    Home delivery
+                    {selectedDeliveryRate ? ` - ${homeDeliveryPrice} DA` : ""}
+                  </option>
+
+                  <option value="office">
+                    Delivery office
+                    {selectedDeliveryRate ? ` - ${officeDeliveryPrice} DA` : ""}
+                  </option>
                 </select>
+
+                {deliveryLoading && (
+                  <p className="mt-2 text-xs text-stone-500">
+                    Loading delivery prices...
+                  </p>
+                )}
+
+                {!form.wilaya && !deliveryLoading && (
+                  <p className="mt-2 text-xs text-amber-600">
+                    Choose your wilaya to calculate delivery price.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -503,40 +571,51 @@ const Checkout = () => {
 
             <div className="mt-6 space-y-4 border-t border-stone-100 pt-6 text-stone-600">
               {totalSavings > 0 && (
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span>Before discount</span>
-                  <span className="line-through">
+
+                  <span className="whitespace-nowrap line-through">
                     {subtotalBeforeDiscount} DA
                   </span>
                 </div>
               )}
 
               {totalSavings > 0 && (
-                <div className="flex justify-between text-red-600">
+                <div className="flex justify-between gap-4 text-red-600">
                   <span>You save</span>
-                  <span>-{totalSavings} DA</span>
+
+                  <span className="whitespace-nowrap">-{totalSavings} DA</span>
                 </div>
               )}
 
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4">
                 <span>Subtotal</span>
-                <span>{subtotalPrice} DA</span>
+
+                <span className="whitespace-nowrap">{subtotalPrice} DA</span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4">
                 <span>Delivery</span>
-                <span>{deliveryPrice} DA</span>
+
+                <span className="whitespace-nowrap">
+                  {deliveryLoading
+                    ? "Loading..."
+                    : selectedDeliveryRate
+                      ? `${deliveryPrice} DA`
+                      : "Choose wilaya"}
+                </span>
               </div>
 
-              <div className="flex justify-between border-t border-stone-100 pt-4 text-xl font-bold text-stone-950">
+              <div className="flex justify-between gap-4 border-t border-stone-100 pt-4 text-xl font-bold text-stone-950">
                 <span>Total</span>
-                <span>{totalPrice} DA</span>
+
+                <span className="whitespace-nowrap">{totalPrice} DA</span>
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={loading || cartItems.length === 0}
+              disabled={loading || deliveryLoading || cartItems.length === 0}
               className="mt-8 w-full rounded-full bg-stone-950 px-6 py-4 text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Placing order..." : "Place Order"}
