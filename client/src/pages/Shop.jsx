@@ -13,6 +13,7 @@ const Shop = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [saleFilter, setSaleFilter] = useState("all");
   const [sortBy, setSortBy] = useState("latest");
 
   const fetchProducts = async () => {
@@ -48,10 +49,26 @@ const Shop = () => {
     return ["all", ...new Set(uniqueCategories)];
   }, [products]);
 
+  const saleProductsCount = useMemo(() => {
+    return products.filter((product) => {
+      const price = Number(product.price || 0);
+      const oldPrice = Number(product.oldPrice || 0);
+      const discountPercent = Number(product.discountPercent || 0);
+
+      return oldPrice > price && discountPercent > 0;
+    }).length;
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
     let result = products.filter((product) => {
+      const price = Number(product.price || 0);
+      const oldPrice = Number(product.oldPrice || 0);
+      const discountPercent = Number(product.discountPercent || 0);
+
+      const hasDiscount = oldPrice > price && discountPercent > 0;
+
       const matchesSearch =
         !query ||
         product.name?.toLowerCase().includes(query) ||
@@ -62,7 +79,9 @@ const Shop = () => {
       const matchesCategory =
         categoryFilter === "all" || product.category === categoryFilter;
 
-      return matchesSearch && matchesCategory;
+      const matchesSale = saleFilter === "all" || hasDiscount;
+
+      return matchesSearch && matchesCategory && matchesSale;
     });
 
     if (sortBy === "price-low") {
@@ -79,12 +98,20 @@ const Shop = () => {
       );
     }
 
+    if (sortBy === "discount-high") {
+      result = [...result].sort(
+        (a, b) =>
+          Number(b.discountPercent || 0) - Number(a.discountPercent || 0),
+      );
+    }
+
     return result;
-  }, [products, searchQuery, categoryFilter, sortBy]);
+  }, [products, searchQuery, categoryFilter, saleFilter, sortBy]);
 
   const resetFilters = () => {
     setSearchQuery("");
     setCategoryFilter("all");
+    setSaleFilter("all");
     setSortBy("latest");
   };
 
@@ -114,7 +141,7 @@ const Shop = () => {
         </div>
 
         <div className="mb-8 rounded-[2rem] bg-white p-5 shadow-sm">
-          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_auto]">
+          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
             <div className="relative">
               <Search
                 size={18}
@@ -142,12 +169,22 @@ const Shop = () => {
             </select>
 
             <select
+              value={saleFilter}
+              onChange={(e) => setSaleFilter(e.target.value)}
+              className="rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900"
+            >
+              <option value="all">All products</option>
+              <option value="sale">On sale ({saleProductsCount})</option>
+            </select>
+
+            <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900"
             >
               <option value="latest">Latest</option>
               <option value="featured">Featured first</option>
+              <option value="discount-high">Best discount</option>
               <option value="price-low">Price: low to high</option>
               <option value="price-high">Price: high to low</option>
             </select>
@@ -162,9 +199,17 @@ const Shop = () => {
             </button>
           </div>
 
-          <p className="mt-4 text-sm text-stone-500">
-            Showing {filteredProducts.length} of {products.length} products.
-          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-stone-500">
+            <p>
+              Showing {filteredProducts.length} of {products.length} products.
+            </p>
+
+            {saleProductsCount > 0 && (
+              <p className="rounded-full bg-red-50 px-3 py-1 font-semibold text-red-600">
+                {saleProductsCount} on sale
+              </p>
+            )}
+          </div>
         </div>
 
         {filteredProducts.length > 0 ? (
