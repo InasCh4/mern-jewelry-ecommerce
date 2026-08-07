@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   Pencil,
   Plus,
@@ -60,6 +59,8 @@ const AdminProducts = () => {
 
   const fetchProducts = async () => {
     try {
+      setLoading(true);
+
       const res = await api.get("/products");
       setProducts(res.data);
     } catch (error) {
@@ -414,25 +415,16 @@ const AdminProducts = () => {
   return (
     <main className="bg-stone-50 px-6 py-10">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
-              Admin
-            </p>
+        <div className="mb-10">
+          <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
+            Admin
+          </p>
 
-            <h1 className="mt-3 text-4xl font-bold text-stone-950">Products</h1>
+          <h1 className="mt-3 text-4xl font-bold text-stone-950">Products</h1>
 
-            <p className="mt-3 text-stone-500">
-              Add, edit, delete products and manage stock.
-            </p>
-          </div>
-
-          <Link
-            to="/admin"
-            className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
-          >
-            Back to dashboard
-          </Link>
+          <p className="mt-3 text-stone-500">
+            Add, edit, delete products and manage stock.
+          </p>
         </div>
 
         <div className="mb-6 grid gap-5 md:grid-cols-5">

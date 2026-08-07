@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, RefreshCcw, Save, Search, Truck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { RefreshCcw, Save, Search, Truck } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
 
@@ -57,6 +56,26 @@ const AdminDeliveryRates = () => {
     });
   }, [rates, searchQuery]);
 
+  const stats = useMemo(() => {
+    const activeRates = rates.filter((rate) => rate.isActive);
+    const inactiveRates = rates.filter((rate) => !rate.isActive);
+
+    return {
+      total: rates.length,
+      active: activeRates.length,
+      inactive: inactiveRates.length,
+      averageHome:
+        rates.length > 0
+          ? Math.round(
+              rates.reduce(
+                (sum, rate) => sum + Number(rate.homePrice || 0),
+                0,
+              ) / rates.length,
+            )
+          : 0,
+    };
+  }, [rates]);
+
   const handleDraftChange = (rateId, field, value) => {
     setDraftRates((prevDrafts) => ({
       ...prevDrafts,
@@ -74,6 +93,11 @@ const AdminDeliveryRates = () => {
 
     const homePrice = Number(draft.homePrice);
     const officePrice = Number(draft.officePrice);
+
+    if (Number.isNaN(homePrice) || Number.isNaN(officePrice)) {
+      toast.error("Please enter valid delivery prices.");
+      return;
+    }
 
     if (homePrice < 0 || officePrice < 0) {
       toast.error("Delivery prices cannot be negative.");
@@ -158,28 +182,52 @@ const AdminDeliveryRates = () => {
   return (
     <main className="min-h-[80vh] bg-stone-50 px-6 py-10">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
-              Admin
-            </p>
+        <div className="mb-8">
+          <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
+            Admin
+          </p>
 
-            <h1 className="mt-3 text-4xl font-bold text-stone-950">
-              Delivery Prices
-            </h1>
+          <h1 className="mt-3 text-4xl font-bold text-stone-950">
+            Delivery Prices
+          </h1>
 
-            <p className="mt-3 text-stone-500">
-              Edit delivery prices by wilaya without touching the code.
-            </p>
+          <p className="mt-3 text-stone-500">
+            Edit delivery prices by wilaya without touching the code.
+          </p>
+        </div>
+
+        <div className="mb-6 grid gap-5 md:grid-cols-4">
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Total wilayas</p>
+
+            <h2 className="mt-2 text-3xl font-bold text-stone-950">
+              {stats.total}
+            </h2>
           </div>
 
-          <Link
-            to="/admin"
-            className="inline-flex w-fit items-center gap-2 rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
-          >
-            <ArrowLeft size={16} />
-            Back to dashboard
-          </Link>
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Active zones</p>
+
+            <h2 className="mt-2 text-3xl font-bold text-green-600">
+              {stats.active}
+            </h2>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Inactive zones</p>
+
+            <h2 className="mt-2 text-3xl font-bold text-red-600">
+              {stats.inactive}
+            </h2>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Avg home price</p>
+
+            <h2 className="mt-2 text-3xl font-bold text-stone-950">
+              {stats.averageHome} DA
+            </h2>
+          </div>
         </div>
 
         <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_auto_auto]">
@@ -306,8 +354,14 @@ const AdminDeliveryRates = () => {
                           className="h-4 w-4 accent-stone-950"
                         />
 
-                        <span className="text-stone-600">
-                          {draft.isActive ? "Yes" : "No"}
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            draft.isActive
+                              ? "bg-green-50 text-green-600"
+                              : "bg-red-50 text-red-600"
+                          }`}
+                        >
+                          {draft.isActive ? "Active" : "Off"}
                         </span>
                       </label>
                     </td>

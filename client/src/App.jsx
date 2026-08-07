@@ -1,9 +1,11 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
+import AdminLayout from "./components/AdminLayout";
 
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
@@ -23,19 +25,50 @@ import AdminProducts from "./pages/AdminProducts";
 import AdminOrders from "./pages/AdminOrders";
 import AdminDeliveryRates from "./pages/AdminDeliveryRates";
 
+import AdminSiteSettings from "./pages/AdminSiteSettings";
+
+import Footer from "./components/Footer";
+import AdminCustomers from "./pages/AdminCustomers";
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "smooth",
+    });
+  }, [pathname]);
+
+  return null;
+}
+
 function LandingPage() {
   return (
     <>
       <Home />
       <Shop />
+      <Footer />
     </>
   );
 }
 
-function App() {
+function AdminPage({ children }) {
   return (
-    <BrowserRouter>
-      <Navbar />
+    <AdminRoute>
+      <AdminLayout>{children}</AdminLayout>
+    </AdminRoute>
+  );
+}
+
+function AppContent() {
+  const location = useLocation();
+  const isAdminPage = location.pathname.startsWith("/admin");
+
+  return (
+    <>
+      <ScrollToTop />
+      {!isAdminPage && <Navbar />}
 
       <Toaster
         position="top-center"
@@ -119,39 +152,63 @@ function App() {
         <Route
           path="/admin"
           element={
-            <AdminRoute>
+            <AdminPage>
               <AdminDashboard />
-            </AdminRoute>
+            </AdminPage>
           }
         />
 
         <Route
           path="/admin/products"
           element={
-            <AdminRoute>
+            <AdminPage>
               <AdminProducts />
-            </AdminRoute>
+            </AdminPage>
           }
         />
 
         <Route
           path="/admin/orders"
           element={
-            <AdminRoute>
+            <AdminPage>
               <AdminOrders />
-            </AdminRoute>
+            </AdminPage>
           }
         />
 
         <Route
           path="/admin/delivery-rates"
           element={
-            <AdminRoute>
+            <AdminPage>
               <AdminDeliveryRates />
-            </AdminRoute>
+            </AdminPage>
+          }
+        />
+        <Route
+          path="/admin/site-settings"
+          element={
+            <AdminPage>
+              <AdminSiteSettings />
+            </AdminPage>
+          }
+        />
+        <Route
+          path="/admin/customers"
+          element={
+            <AdminPage>
+              <AdminCustomers />
+            </AdminPage>
           }
         />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }

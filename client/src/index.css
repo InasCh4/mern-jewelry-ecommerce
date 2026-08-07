@@ -20,3 +20,19 @@ html {
 #about {
   scroll-margin-top: 90px;
 }
+.admin-sidebar-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+html,
+body,
+#root {
+  width: 100%;
+  overflow-x: hidden;
+}

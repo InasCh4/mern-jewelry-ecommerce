@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   PackageCheck,
   ShoppingBag,
@@ -44,6 +43,8 @@ const AdminDashboard = () => {
 
   const fetchOrders = async () => {
     try {
+      setLoading(true);
+
       const res = await api.get("/orders");
       setOrders(res.data);
     } catch (error) {
@@ -177,7 +178,9 @@ const AdminDashboard = () => {
           <div className="mt-6 rounded-[2rem] bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-3 border-b border-stone-100 pb-6 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-stone-950">Orders</h2>
+                <h2 className="text-2xl font-bold text-stone-950">
+                  Recent Orders
+                </h2>
 
                 <p className="mt-1 text-stone-500">
                   Total revenue:{" "}
@@ -187,34 +190,13 @@ const AdminDashboard = () => {
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  to="/admin/products"
-                  className="w-fit rounded-full bg-stone-950 px-5 py-2 text-sm text-white transition hover:bg-stone-700"
-                >
-                  Manage Products
-                </Link>
-
-                <Link
-                  to="/admin/orders"
-                  className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                  Manage Orders
-                </Link>
-                <Link
-                  to="/admin/delivery-rates"
-                  className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                  Delivery Prices
-                </Link>
-                <button
-                  type="button"
-                  onClick={fetchOrders}
-                  className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
-                >
-                  Refresh
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={fetchOrders}
+                className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+              >
+                Refresh
+              </button>
             </div>
 
             {orders.length === 0 ? (
@@ -530,6 +512,7 @@ const AdminDashboard = () => {
               <div className="rounded-[2rem] bg-stone-950 p-6 text-white">
                 <div className="flex justify-between gap-4 text-white/80">
                   <span>Subtotal</span>
+
                   <span className="whitespace-nowrap">
                     {selectedOrder.subtotalPrice} DA
                   </span>
@@ -537,6 +520,7 @@ const AdminDashboard = () => {
 
                 <div className="mt-3 flex justify-between gap-4 text-white/60">
                   <span>Delivery</span>
+
                   <span className="whitespace-nowrap">
                     {selectedOrder.deliveryPrice} DA
                   </span>
@@ -544,6 +528,7 @@ const AdminDashboard = () => {
 
                 <div className="mt-5 flex justify-between gap-4 border-t border-white/10 pt-5 text-2xl font-bold">
                   <span>Total</span>
+
                   <span className="whitespace-nowrap">
                     {selectedOrder.totalPrice} DA
                   </span>
