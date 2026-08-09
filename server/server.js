@@ -13,6 +13,7 @@ const deliveryRateRoutes = require("./routes/deliveryRateRoutes");
 const siteSettingRoutes = require("./routes/siteSettingRoutes");
 const userRoutes = require("./routes/userRoutes");
 const paymentSettingRoutes = require("./routes/paymentSettingRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use("/api/delivery-rates", deliveryRateRoutes);
 app.use("/api/site-settings", siteSettingRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/payment-settings", paymentSettingRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running 💎");

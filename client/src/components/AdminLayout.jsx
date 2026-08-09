@@ -83,15 +83,13 @@ const navItems = [
     path: "/admin/payment-settings",
     icon: CreditCard,
   },
-];
-
-const soonItems = [
   {
     label: "Analytics",
+    path: "/admin/analytics",
     icon: BarChart3,
   },
 ];
-
+const soonItems = [];
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
 
@@ -302,15 +300,17 @@ const AdminLayout = ({ children }) => {
           {navItems.map((item) => renderNavItem(item, isCollapsed))}
         </nav>
 
-        {!isCollapsed && (
+        {soonItems.length > 0 && !isCollapsed && (
           <p className="mt-8 px-3 text-xs uppercase tracking-[0.32em] text-stone-500">
             Coming next
           </p>
         )}
 
-        <div className="mt-4 space-y-2">
-          {soonItems.map((item) => renderNavItem(item, isCollapsed, true))}
-        </div>
+        {soonItems.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {soonItems.map((item) => renderNavItem(item, isCollapsed, true))}
+          </div>
+        )}
       </div>
 
       <div className="border-t border-white/10 p-3">

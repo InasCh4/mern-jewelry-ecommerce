@@ -30,6 +30,7 @@ import AdminSiteSettings from "./pages/AdminSiteSettings";
 import Footer from "./components/Footer";
 import AdminCustomers from "./pages/AdminCustomers";
 import AdminPaymentSettings from "./pages/AdminPaymentSettings";
+import AdminAnalytics from "./pages/AdminAnalytics";
 function ScrollToTop() {
   const { pathname } = useLocation();
 
@@ -206,6 +207,14 @@ function AppContent() {
           element={
             <AdminPage>
               <AdminPaymentSettings />
+            </AdminPage>
+          }
+        />
+        <Route
+          path="/admin/analytics"
+          element={
+            <AdminPage>
+              <AdminAnalytics />
             </AdminPage>
           }
         />
