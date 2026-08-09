@@ -1,7 +1,47 @@
+const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const DeliveryRate = require("../models/DeliveryRate");
 const { ensureDeliveryRates } = require("./deliveryRateController");
+const { ensurePaymentSettings } = require("./paymentSettingController");
+
+const allowedPaymentMethods = ["cash", "baridimob", "card"];
+const allowedOrderStatuses = [
+  "pending",
+  "confirmed",
+  "shipped",
+  "delivered",
+  "cancelled",
+];
+const allowedPaymentStatuses = ["unpaid", "pending", "paid", "failed"];
+
+const getSafePaymentMethod = async (paymentMethod) => {
+  const paymentSettings = await ensurePaymentSettings();
+
+  const activePaymentMethods = allowedPaymentMethods.filter(
+    (method) => paymentSettings[method]?.isActive,
+  );
+
+  if (activePaymentMethods.length === 0) {
+    return {
+      error: "No payment method is currently available.",
+    };
+  }
+
+  const requestedPaymentMethod = allowedPaymentMethods.includes(paymentMethod)
+    ? paymentMethod
+    : activePaymentMethods[0];
+
+  if (!paymentSettings[requestedPaymentMethod]?.isActive) {
+    return {
+      error: "Selected payment method is not available.",
+    };
+  }
+
+  return {
+    paymentMethod: requestedPaymentMethod,
+  };
+};
 
 // POST /api/orders
 // Private user
@@ -46,6 +86,16 @@ const createOrder = async (req, res) => {
       });
     }
 
+    const paymentResult = await getSafePaymentMethod(paymentMethod);
+
+    if (paymentResult.error) {
+      return res.status(400).json({
+        message: paymentResult.error,
+      });
+    }
+
+    const safePaymentMethod = paymentResult.paymentMethod;
+
     let subtotalPrice = 0;
     const safeOrderItems = [];
 
@@ -53,9 +103,9 @@ const createOrder = async (req, res) => {
       const productId = item._id || item.product;
       const quantity = Number(item.quantity || 0);
 
-      if (!productId) {
+      if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
         return res.status(400).json({
-          message: "Product id is missing.",
+          message: "Invalid product id.",
         });
       }
 
@@ -137,10 +187,7 @@ const createOrder = async (req, res) => {
 
     const totalPrice = subtotalPrice + finalDeliveryPrice;
 
-    const allowedPaymentMethods = ["cash", "baridimob", "card"];
-    const safePaymentMethod = allowedPaymentMethods.includes(paymentMethod)
-      ? paymentMethod
-      : "cash";
+    const paymentStatus = safePaymentMethod === "cash" ? "unpaid" : "pending";
 
     const order = await Order.create({
       user: req.user._id,
@@ -160,6 +207,7 @@ const createOrder = async (req, res) => {
       deliveryPrice: finalDeliveryPrice,
       totalPrice,
       paymentMethod: safePaymentMethod,
+      paymentStatus,
       deliveryMethod: safeDeliveryMethod,
     });
 
@@ -213,6 +261,12 @@ const getMyOrders = async (req, res) => {
 // Private owner or admin
 const getOrderById = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid order id.",
+      });
+    }
+
     const order = await Order.findById(req.params.id).populate(
       "user",
       "name email role",
@@ -247,6 +301,12 @@ const updateOrderStatus = async (req, res) => {
   try {
     const { orderStatus, paymentStatus } = req.body;
 
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid order id.",
+      });
+    }
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {
@@ -256,10 +316,22 @@ const updateOrderStatus = async (req, res) => {
     }
 
     if (orderStatus) {
+      if (!allowedOrderStatuses.includes(orderStatus)) {
+        return res.status(400).json({
+          message: "Invalid order status.",
+        });
+      }
+
       order.orderStatus = orderStatus;
     }
 
     if (paymentStatus) {
+      if (!allowedPaymentStatuses.includes(paymentStatus)) {
+        return res.status(400).json({
+          message: "Invalid payment status.",
+        });
+      }
+
       order.paymentStatus = paymentStatus;
     }
 
@@ -282,6 +354,12 @@ const updateOrderStatus = async (req, res) => {
 // Private owner or admin
 const cancelOrder = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid order id.",
+      });
+    }
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {

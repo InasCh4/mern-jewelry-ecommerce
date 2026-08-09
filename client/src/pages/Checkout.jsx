@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Select from "react-select";
 import toast from "react-hot-toast";
@@ -7,6 +7,39 @@ import useCartStore from "../store/cartStore";
 import useAuthStore from "../store/authStore";
 import { WILAYAS, getCommunesByWilayaName } from "../data/algeriaLocations";
 import AddressAutocomplete from "../components/AddressAutocomplete";
+
+const defaultPaymentSettings = {
+  cash: {
+    isActive: true,
+    displayName: "Cash on delivery",
+    description: "Pay when your order arrives.",
+    instructions:
+      "The customer pays the full order amount directly to the delivery agent.",
+    accountName: "",
+    accountNumber: "",
+  },
+  baridimob: {
+    isActive: false,
+    displayName: "BaridiMob",
+    description: "Pay using BaridiMob transfer.",
+    instructions:
+      "After placing the order, send the transfer receipt through WhatsApp.",
+    accountName: "",
+    accountNumber: "",
+  },
+  card: {
+    isActive: false,
+    displayName: "Card payment",
+    description: "Online card payment will be available soon.",
+    instructions: "Card payment provider is not connected yet.",
+    accountName: "",
+    accountNumber: "",
+  },
+  paymentNotice:
+    "Your order will be confirmed after payment verification when required.",
+};
+
+const paymentMethodKeys = ["cash", "baridimob", "card"];
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -19,6 +52,11 @@ const Checkout = () => {
 
   const [deliveryRates, setDeliveryRates] = useState([]);
   const [deliveryLoading, setDeliveryLoading] = useState(true);
+
+  const [paymentSettings, setPaymentSettings] = useState(
+    defaultPaymentSettings,
+  );
+  const [paymentLoading, setPaymentLoading] = useState(true);
 
   const totalSavings = cartItems.reduce((sum, item) => {
     const price = Number(item.price || 0);
@@ -64,9 +102,67 @@ const Checkout = () => {
     }
   };
 
+  const fetchPaymentSettings = async () => {
+    try {
+      setPaymentLoading(true);
+
+      const res = await api.get("/payment-settings");
+
+      const nextSettings = {
+        ...defaultPaymentSettings,
+        ...res.data,
+        cash: {
+          ...defaultPaymentSettings.cash,
+          ...res.data.cash,
+        },
+        baridimob: {
+          ...defaultPaymentSettings.baridimob,
+          ...res.data.baridimob,
+        },
+        card: {
+          ...defaultPaymentSettings.card,
+          ...res.data.card,
+        },
+      };
+
+      setPaymentSettings(nextSettings);
+
+      const firstActiveMethod = paymentMethodKeys.find(
+        (key) => nextSettings[key]?.isActive,
+      );
+
+      setForm((prevForm) => ({
+        ...prevForm,
+        paymentMethod: nextSettings[prevForm.paymentMethod]?.isActive
+          ? prevForm.paymentMethod
+          : firstActiveMethod || "",
+      }));
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Could not load payment methods.",
+      );
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDeliveryRates();
+    fetchPaymentSettings();
   }, []);
+
+  const activePaymentMethods = useMemo(() => {
+    return paymentMethodKeys
+      .filter((key) => paymentSettings[key]?.isActive)
+      .map((key) => ({
+        key,
+        ...paymentSettings[key],
+      }));
+  }, [paymentSettings]);
+
+  const selectedPaymentMethod = activePaymentMethods.find(
+    (method) => method.key === form.paymentMethod,
+  );
 
   const wilayaOptions = WILAYAS.map((wilaya) => ({
     value: wilaya.name,
@@ -92,7 +188,7 @@ const Checkout = () => {
   const deliveryPrice =
     form.deliveryMethod === "office" ? officeDeliveryPrice : homeDeliveryPrice;
 
-  const totalPrice = subtotalPrice + deliveryPrice;
+  const totalPrice = Number(subtotalPrice || 0) + deliveryPrice;
 
   const selectStyles = {
     control: (base, state) => ({
@@ -193,6 +289,18 @@ const Checkout = () => {
 
     if (!form.address.trim()) {
       return "Address is required.";
+    }
+
+    if (paymentLoading) {
+      return "Payment methods are still loading.";
+    }
+
+    if (activePaymentMethods.length === 0) {
+      return "No payment method is currently available.";
+    }
+
+    if (!selectedPaymentMethod) {
+      return "Please choose a payment method.";
     }
 
     return "";
@@ -498,14 +606,79 @@ const Checkout = () => {
                   name="paymentMethod"
                   value={form.paymentMethod}
                   onChange={handleChange}
-                  className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900"
+                  disabled={paymentLoading || activePaymentMethods.length === 0}
+                  className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
                 >
-                  <option value="cash">Cash on delivery</option>
-                  <option value="baridimob">BaridiMob transfer</option>
-                  <option value="card">Card payment later</option>
+                  {activePaymentMethods.map((method) => (
+                    <option key={method.key} value={method.key}>
+                      {method.displayName}
+                    </option>
+                  ))}
                 </select>
+
+                {paymentLoading && (
+                  <p className="mt-2 text-xs text-stone-500">
+                    Loading payment methods...
+                  </p>
+                )}
+
+                {!paymentLoading && activePaymentMethods.length === 0 && (
+                  <p className="mt-2 text-xs text-red-500">
+                    No payment method is currently available.
+                  </p>
+                )}
               </div>
             </div>
+
+            {selectedPaymentMethod && (
+              <div className="mt-6 rounded-[2rem] bg-stone-50 p-5">
+                <p className="text-sm font-bold text-stone-950">
+                  {selectedPaymentMethod.displayName}
+                </p>
+
+                {selectedPaymentMethod.description && (
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    {selectedPaymentMethod.description}
+                  </p>
+                )}
+
+                {selectedPaymentMethod.instructions && (
+                  <p className="mt-3 rounded-2xl bg-white p-4 text-sm leading-6 text-stone-600">
+                    {selectedPaymentMethod.instructions}
+                  </p>
+                )}
+
+                {form.paymentMethod === "baridimob" &&
+                  (selectedPaymentMethod.accountName ||
+                    selectedPaymentMethod.accountNumber) && (
+                    <div className="mt-3 grid gap-3 rounded-2xl bg-white p-4 text-sm text-stone-600 md:grid-cols-2">
+                      {selectedPaymentMethod.accountName && (
+                        <p>
+                          <span className="font-semibold text-stone-950">
+                            Account:
+                          </span>{" "}
+                          {selectedPaymentMethod.accountName}
+                        </p>
+                      )}
+
+                      {selectedPaymentMethod.accountNumber && (
+                        <p>
+                          <span className="font-semibold text-stone-950">
+                            RIP / Number:
+                          </span>{" "}
+                          {selectedPaymentMethod.accountNumber}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                {paymentSettings.paymentNotice && (
+                  <p className="mt-3 text-xs text-stone-500">
+                    {paymentSettings.paymentNotice}
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           <aside className="h-fit rounded-[2rem] bg-white p-6 shadow-sm">
@@ -615,7 +788,13 @@ const Checkout = () => {
 
             <button
               type="submit"
-              disabled={loading || deliveryLoading || cartItems.length === 0}
+              disabled={
+                loading ||
+                deliveryLoading ||
+                paymentLoading ||
+                activePaymentMethods.length === 0 ||
+                cartItems.length === 0
+              }
               className="mt-8 w-full rounded-full bg-stone-950 px-6 py-4 text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Placing order..." : "Place Order"}

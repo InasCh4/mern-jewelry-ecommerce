@@ -1,20 +1,83 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CheckCircle, PackageCheck } from "lucide-react";
+import { CheckCircle, CreditCard, PackageCheck } from "lucide-react";
 import api from "../api/axios";
+
+const defaultPaymentSettings = {
+  cash: {
+    isActive: true,
+    displayName: "Cash on delivery",
+    description: "Pay when your order arrives.",
+    instructions:
+      "The customer pays the full order amount directly to the delivery agent.",
+    accountName: "",
+    accountNumber: "",
+  },
+  baridimob: {
+    isActive: false,
+    displayName: "BaridiMob",
+    description: "Pay using BaridiMob transfer.",
+    instructions:
+      "After placing the order, send the transfer receipt through WhatsApp.",
+    accountName: "",
+    accountNumber: "",
+  },
+  card: {
+    isActive: false,
+    displayName: "Card payment",
+    description: "Online card payment will be available soon.",
+    instructions: "Card payment provider is not connected yet.",
+    accountName: "",
+    accountNumber: "",
+  },
+  paymentNotice:
+    "Your order will be confirmed after payment verification when required.",
+};
+
+const paymentStatusStyles = {
+  unpaid: "bg-stone-100 text-stone-600",
+  pending: "bg-amber-50 text-amber-600",
+  paid: "bg-green-50 text-green-600",
+  failed: "bg-red-50 text-red-600",
+};
 
 const OrderSuccess = () => {
   const { id } = useParams();
+
   const [order, setOrder] = useState(null);
+  const [paymentSettings, setPaymentSettings] = useState(
+    defaultPaymentSettings,
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchOrderAndPayment = async () => {
       try {
         setLoading(true);
 
-        const res = await api.get(`/orders/${id}`);
-        setOrder(res.data);
+        const [orderRes, paymentRes] = await Promise.all([
+          api.get(`/orders/${id}`),
+          api.get("/payment-settings"),
+        ]);
+
+        setOrder(orderRes.data);
+
+        setPaymentSettings({
+          ...defaultPaymentSettings,
+          ...paymentRes.data,
+          cash: {
+            ...defaultPaymentSettings.cash,
+            ...paymentRes.data.cash,
+          },
+          baridimob: {
+            ...defaultPaymentSettings.baridimob,
+            ...paymentRes.data.baridimob,
+          },
+          card: {
+            ...defaultPaymentSettings.card,
+            ...paymentRes.data.card,
+          },
+        });
       } catch (error) {
         console.log("Error fetching order:", error);
       } finally {
@@ -22,8 +85,12 @@ const OrderSuccess = () => {
       }
     };
 
-    fetchOrder();
+    fetchOrderAndPayment();
   }, [id]);
+
+  const selectedPaymentMethod = order?.paymentMethod
+    ? paymentSettings[order.paymentMethod]
+    : null;
 
   const totalSavings = useMemo(() => {
     if (!order?.orderItems?.length) return 0;
@@ -67,132 +134,221 @@ const OrderSuccess = () => {
         )}
 
         {!loading && order && (
-          <div className="mt-8 rounded-3xl bg-stone-50 p-5 text-left md:p-6">
-            <div className="flex flex-col gap-4 border-b border-stone-200 pb-5 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="text-sm text-stone-500">Order ID</p>
+          <div className="mt-8 space-y-6 text-left">
+            <div className="rounded-3xl bg-stone-50 p-5 md:p-6">
+              <div className="flex flex-col gap-4 border-b border-stone-200 pb-5 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm text-stone-500">Order ID</p>
 
-                <p className="mt-1 break-all font-semibold text-stone-950">
-                  {order._id}
-                </p>
+                  <p className="mt-1 break-all font-semibold text-stone-950">
+                    {order._id}
+                  </p>
+                </div>
+
+                <span className="w-fit rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold capitalize text-amber-600">
+                  {order.orderStatus}
+                </span>
               </div>
 
-              <span className="w-fit rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold capitalize text-amber-600">
-                {order.orderStatus}
-              </span>
-            </div>
+              <div className="mt-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <PackageCheck size={20} className="text-stone-700" />
 
-            <div className="mt-6">
-              <div className="mb-4 flex items-center gap-2">
-                <PackageCheck size={20} className="text-stone-700" />
+                  <h2 className="text-xl font-bold text-stone-950">
+                    Order items
+                  </h2>
+                </div>
 
-                <h2 className="text-xl font-bold text-stone-950">
-                  Order items
-                </h2>
-              </div>
+                <div className="space-y-4">
+                  {order.orderItems?.map((item) => {
+                    const price = Number(item.price || 0);
+                    const oldPrice = Number(item.oldPrice || 0);
+                    const quantity = Number(item.quantity || 1);
+                    const discountPercent = Number(item.discountPercent || 0);
+                    const hasDiscount = oldPrice > price && discountPercent > 0;
+                    const lineTotal = price * quantity;
 
-              <div className="space-y-4">
-                {order.orderItems?.map((item) => {
-                  const price = Number(item.price || 0);
-                  const oldPrice = Number(item.oldPrice || 0);
-                  const quantity = Number(item.quantity || 1);
-                  const discountPercent = Number(item.discountPercent || 0);
-                  const hasDiscount = oldPrice > price && discountPercent > 0;
-                  const lineTotal = price * quantity;
-
-                  return (
-                    <div
-                      key={`${order._id}-${item.product}`}
-                      className="flex gap-4 rounded-2xl bg-white p-4 shadow-sm"
-                    >
-                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-stone-100">
-                        {hasDiscount && (
-                          <span className="absolute left-2 top-2 z-10 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white">
-                            -{discountPercent}%
-                          </span>
-                        )}
-
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-lg font-bold text-stone-950">
-                          {item.name}
-                        </h3>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <p className="text-sm text-stone-500">
-                            Qty: {quantity} × {price} DA
-                          </p>
-
+                    return (
+                      <div
+                        key={`${order._id}-${item.product}`}
+                        className="flex gap-4 rounded-2xl bg-white p-4 shadow-sm"
+                      >
+                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-stone-100">
                           {hasDiscount && (
-                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
-                              Sale
+                            <span className="absolute left-2 top-2 z-10 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+                              -{discountPercent}%
                             </span>
                           )}
+
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                          />
                         </div>
 
-                        {hasDiscount && (
-                          <p className="mt-1 text-xs text-stone-400">
-                            Old price:{" "}
-                            <span className="line-through">{oldPrice} DA</span>
-                          </p>
-                        )}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-lg font-bold text-stone-950">
+                            {item.name}
+                          </h3>
 
-                        <p className="mt-2 font-semibold text-stone-950">
-                          {lineTotal} DA
-                        </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <p className="text-sm text-stone-500">
+                              Qty: {quantity} × {price} DA
+                            </p>
+
+                            {hasDiscount && (
+                              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                                Sale
+                              </span>
+                            )}
+                          </div>
+
+                          {hasDiscount && (
+                            <p className="mt-1 text-xs text-stone-400">
+                              Old price:{" "}
+                              <span className="line-through">
+                                {oldPrice} DA
+                              </span>
+                            </p>
+                          )}
+
+                          <p className="mt-2 font-semibold text-stone-950">
+                            {lineTotal} DA
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+                {totalSavings > 0 && (
+                  <div className="flex justify-between gap-4 text-stone-500">
+                    <span>Before discount</span>
+
+                    <span className="whitespace-nowrap line-through">
+                      {subtotalBeforeDiscount} DA
+                    </span>
+                  </div>
+                )}
+
+                {totalSavings > 0 && (
+                  <div className="mt-3 flex justify-between gap-4 text-red-600">
+                    <span>You save</span>
+
+                    <span className="whitespace-nowrap">
+                      -{totalSavings} DA
+                    </span>
+                  </div>
+                )}
+
+                <div className="mt-3 flex justify-between gap-4 text-stone-600">
+                  <span>Subtotal</span>
+
+                  <span className="whitespace-nowrap">
+                    {order.subtotalPrice} DA
+                  </span>
+                </div>
+
+                <div className="mt-3 flex justify-between gap-4 text-stone-600">
+                  <span>Delivery</span>
+
+                  <span className="whitespace-nowrap">
+                    {order.deliveryPrice} DA
+                  </span>
+                </div>
+
+                <div className="mt-5 flex justify-between gap-4 border-t border-stone-100 pt-5 text-xl font-bold text-stone-950">
+                  <span>Total</span>
+
+                  <span className="whitespace-nowrap">
+                    {order.totalPrice} DA
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
-              {totalSavings > 0 && (
-                <div className="flex justify-between gap-4 text-stone-500">
-                  <span>Before discount</span>
+            <div className="rounded-3xl border border-amber-100 bg-amber-50 p-5 md:p-6">
+              <div className="flex items-center gap-3 text-stone-950">
+                <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-stone-950">
+                  <CreditCard size={19} />
+                </div>
 
-                  <span className="whitespace-nowrap line-through">
-                    {subtotalBeforeDiscount} DA
+                <div>
+                  <h2 className="text-xl font-bold">Payment information</h2>
+
+                  <p className="mt-1 text-sm text-stone-500">
+                    Please follow the instructions below if required.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="text-sm text-stone-500">Payment method</p>
+
+                  <p className="mt-1 font-bold text-stone-950">
+                    {selectedPaymentMethod?.displayName || order.paymentMethod}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="text-sm text-stone-500">Payment status</p>
+
+                  <span
+                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold capitalize ${
+                      paymentStatusStyles[order.paymentStatus] ||
+                      "bg-stone-100 text-stone-600"
+                    }`}
+                  >
+                    {order.paymentStatus}
                   </span>
                 </div>
+              </div>
+
+              {selectedPaymentMethod?.description && (
+                <p className="mt-4 rounded-2xl bg-white p-4 text-sm leading-6 text-stone-600">
+                  {selectedPaymentMethod.description}
+                </p>
               )}
 
-              {totalSavings > 0 && (
-                <div className="mt-3 flex justify-between gap-4 text-red-600">
-                  <span>You save</span>
-
-                  <span className="whitespace-nowrap">-{totalSavings} DA</span>
-                </div>
+              {selectedPaymentMethod?.instructions && (
+                <p className="mt-4 rounded-2xl bg-white p-4 text-sm leading-6 text-stone-700">
+                  {selectedPaymentMethod.instructions}
+                </p>
               )}
 
-              <div className="mt-3 flex justify-between gap-4 text-stone-600">
-                <span>Subtotal</span>
+              {order.paymentMethod === "baridimob" &&
+                (selectedPaymentMethod?.accountName ||
+                  selectedPaymentMethod?.accountNumber) && (
+                  <div className="mt-4 grid gap-3 rounded-2xl bg-white p-4 text-sm text-stone-600 md:grid-cols-2">
+                    {selectedPaymentMethod.accountName && (
+                      <p>
+                        <span className="font-semibold text-stone-950">
+                          Account:
+                        </span>{" "}
+                        {selectedPaymentMethod.accountName}
+                      </p>
+                    )}
 
-                <span className="whitespace-nowrap">
-                  {order.subtotalPrice} DA
-                </span>
-              </div>
+                    {selectedPaymentMethod.accountNumber && (
+                      <p>
+                        <span className="font-semibold text-stone-950">
+                          RIP / Number:
+                        </span>{" "}
+                        {selectedPaymentMethod.accountNumber}
+                      </p>
+                    )}
+                  </div>
+                )}
 
-              <div className="mt-3 flex justify-between gap-4 text-stone-600">
-                <span>Delivery</span>
-
-                <span className="whitespace-nowrap">
-                  {order.deliveryPrice} DA
-                </span>
-              </div>
-
-              <div className="mt-5 flex justify-between gap-4 border-t border-stone-100 pt-5 text-xl font-bold text-stone-950">
-                <span>Total</span>
-
-                <span className="whitespace-nowrap">{order.totalPrice} DA</span>
-              </div>
+              {paymentSettings.paymentNotice && (
+                <p className="mt-4 text-xs leading-6 text-stone-500">
+                  {paymentSettings.paymentNotice}
+                </p>
+              )}
             </div>
           </div>
         )}

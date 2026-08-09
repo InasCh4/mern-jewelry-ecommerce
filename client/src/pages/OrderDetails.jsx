@@ -24,12 +24,53 @@ const statusStyles = {
   cancelled: "bg-red-50 text-red-600",
 };
 
+const paymentStatusStyles = {
+  unpaid: "bg-stone-100 text-stone-600",
+  pending: "bg-amber-50 text-amber-600",
+  paid: "bg-green-50 text-green-600",
+  failed: "bg-red-50 text-red-600",
+};
+
+const defaultPaymentSettings = {
+  cash: {
+    isActive: true,
+    displayName: "Cash on delivery",
+    description: "Pay when your order arrives.",
+    instructions:
+      "The customer pays the full order amount directly to the delivery agent.",
+    accountName: "",
+    accountNumber: "",
+  },
+  baridimob: {
+    isActive: false,
+    displayName: "BaridiMob",
+    description: "Pay using BaridiMob transfer.",
+    instructions:
+      "After placing the order, send the transfer receipt through WhatsApp.",
+    accountName: "",
+    accountNumber: "",
+  },
+  card: {
+    isActive: false,
+    displayName: "Card payment",
+    description: "Online card payment will be available soon.",
+    instructions: "Card payment provider is not connected yet.",
+    accountName: "",
+    accountNumber: "",
+  },
+  paymentNotice:
+    "Your order will be confirmed after payment verification when required.",
+};
+
 const timelineSteps = ["pending", "confirmed", "shipped", "delivered"];
 
 const OrderDetails = () => {
   const { id } = useParams();
 
   const [order, setOrder] = useState(null);
+  const [paymentSettings, setPaymentSettings] = useState(
+    defaultPaymentSettings,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -39,8 +80,29 @@ const OrderDetails = () => {
       setLoading(true);
       setError("");
 
-      const res = await api.get(`/orders/${id}`);
-      setOrder(res.data);
+      const [orderRes, paymentRes] = await Promise.all([
+        api.get(`/orders/${id}`),
+        api.get("/payment-settings"),
+      ]);
+
+      setOrder(orderRes.data);
+
+      setPaymentSettings({
+        ...defaultPaymentSettings,
+        ...paymentRes.data,
+        cash: {
+          ...defaultPaymentSettings.cash,
+          ...paymentRes.data.cash,
+        },
+        baridimob: {
+          ...defaultPaymentSettings.baridimob,
+          ...paymentRes.data.baridimob,
+        },
+        card: {
+          ...defaultPaymentSettings.card,
+          ...paymentRes.data.card,
+        },
+      });
     } catch (error) {
       const message = error.response?.data?.message || "Could not load order.";
 
@@ -80,6 +142,10 @@ const OrderDetails = () => {
 
   const subtotalBeforeDiscount =
     Number(order?.subtotalPrice || 0) + totalSavings;
+
+  const selectedPaymentMethod = order?.paymentMethod
+    ? paymentSettings[order.paymentMethod]
+    : null;
 
   const handleCancelOrder = async () => {
     const confirmCancel = window.confirm(
@@ -429,13 +495,63 @@ const OrderDetails = () => {
               <div className="mt-5 rounded-2xl bg-stone-50 p-4">
                 <div className="flex items-center gap-3 text-stone-950">
                   <CreditCard size={18} />
-                  <p className="font-bold capitalize">{order.paymentMethod}</p>
+
+                  <p className="font-bold">
+                    {selectedPaymentMethod?.displayName || order.paymentMethod}
+                  </p>
                 </div>
 
-                <p className="mt-3 text-sm capitalize text-stone-500">
-                  Status: {order.paymentStatus}
-                </p>
+                <span
+                  className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold capitalize ${
+                    paymentStatusStyles[order.paymentStatus] ||
+                    "bg-stone-100 text-stone-600"
+                  }`}
+                >
+                  {order.paymentStatus}
+                </span>
               </div>
+
+              {selectedPaymentMethod?.description && (
+                <p className="mt-4 rounded-2xl bg-stone-50 p-4 text-sm leading-6 text-stone-600">
+                  {selectedPaymentMethod.description}
+                </p>
+              )}
+
+              {selectedPaymentMethod?.instructions && (
+                <p className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-stone-700">
+                  {selectedPaymentMethod.instructions}
+                </p>
+              )}
+
+              {order.paymentMethod === "baridimob" &&
+                (selectedPaymentMethod?.accountName ||
+                  selectedPaymentMethod?.accountNumber) && (
+                  <div className="mt-4 space-y-3 rounded-2xl bg-stone-50 p-4 text-sm text-stone-600">
+                    {selectedPaymentMethod.accountName && (
+                      <p>
+                        <span className="font-semibold text-stone-950">
+                          Account:
+                        </span>{" "}
+                        {selectedPaymentMethod.accountName}
+                      </p>
+                    )}
+
+                    {selectedPaymentMethod.accountNumber && (
+                      <p>
+                        <span className="font-semibold text-stone-950">
+                          RIP / Number:
+                        </span>{" "}
+                        {selectedPaymentMethod.accountNumber}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+              {paymentSettings.paymentNotice && (
+                <p className="mt-4 text-xs leading-6 text-stone-500">
+                  {paymentSettings.paymentNotice}
+                </p>
+              )}
             </div>
 
             <div className="rounded-[2rem] bg-white p-6 shadow-sm">

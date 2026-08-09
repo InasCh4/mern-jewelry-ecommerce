@@ -78,13 +78,14 @@ const navItems = [
     path: "/admin/customers",
     icon: Users,
   },
+  {
+    label: "Payment Settings",
+    path: "/admin/payment-settings",
+    icon: CreditCard,
+  },
 ];
 
 const soonItems = [
-  {
-    label: "Payment Settings",
-    icon: CreditCard,
-  },
   {
     label: "Analytics",
     icon: BarChart3,
