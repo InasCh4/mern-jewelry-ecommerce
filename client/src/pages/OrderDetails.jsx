@@ -6,6 +6,7 @@ import {
   CreditCard,
   FileText,
   MapPin,
+  MessageCircle,
   Package,
   Phone,
   Truck,
@@ -63,7 +64,58 @@ const defaultPaymentSettings = {
     "Your order will be confirmed after payment verification when required.",
 };
 
+const defaultSiteSettings = {
+  shopName: "ECLORA",
+  contact: {
+    whatsapp: "",
+  },
+};
+
 const timelineSteps = ["pending", "confirmed", "shipped", "delivered"];
+
+const formatPrice = (value) => `${Number(value || 0).toLocaleString()} DA`;
+
+const normalizeDzPhoneForWhatsApp = (phone) => {
+  const digits = String(phone || "").replace(/\D/g, "");
+
+  if (!digits) return "";
+
+  if (digits.startsWith("00213")) {
+    return digits.slice(2);
+  }
+
+  if (digits.startsWith("213")) {
+    return digits;
+  }
+
+  if (digits.startsWith("0")) {
+    return `213${digits.slice(1)}`;
+  }
+
+  if (digits.length === 9 && ["5", "6", "7"].includes(digits.charAt(0))) {
+    return `213${digits}`;
+  }
+
+  return digits;
+};
+
+const buildReceiptMessage = (order) => {
+  const orderNumber = `#${order._id.slice(-6).toUpperCase()}`;
+  const customerName = order.customerInfo?.fullName || "";
+
+  return `Bonjour,
+
+Voici mon reçu BaridiMob pour la commande ${orderNumber}.
+
+Nom : ${customerName}
+Total : ${formatPrice(order.totalPrice)}
+Paiement : BaridiMob
+Statut paiement : en attente de vérification
+
+Je joins le reçu de paiement ici.
+
+Merci.`;
+};
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -72,6 +124,7 @@ const OrderDetails = () => {
   const [paymentSettings, setPaymentSettings] = useState(
     defaultPaymentSettings,
   );
+  const [siteSettings, setSiteSettings] = useState(defaultSiteSettings);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -81,9 +134,10 @@ const OrderDetails = () => {
       setLoading(true);
       setError("");
 
-      const [orderRes, paymentRes] = await Promise.all([
+      const [orderRes, paymentRes, siteSettingsRes] = await Promise.all([
         api.get(`/orders/${id}`),
         api.get("/payment-settings"),
+        api.get("/site-settings"),
       ]);
 
       setOrder(orderRes.data);
@@ -102,6 +156,15 @@ const OrderDetails = () => {
         card: {
           ...defaultPaymentSettings.card,
           ...paymentRes.data.card,
+        },
+      });
+
+      setSiteSettings({
+        ...defaultSiteSettings,
+        ...siteSettingsRes.data,
+        contact: {
+          ...defaultSiteSettings.contact,
+          ...siteSettingsRes.data.contact,
         },
       });
     } catch (error) {
@@ -147,6 +210,31 @@ const OrderDetails = () => {
   const selectedPaymentMethod = order?.paymentMethod
     ? paymentSettings[order.paymentMethod]
     : null;
+
+  const shopWhatsAppPhone = siteSettings.contact?.whatsapp || "";
+  const canSendBaridiMobReceipt =
+    order?.paymentMethod === "baridimob" && order?.paymentStatus === "pending";
+
+  const openReceiptWhatsApp = () => {
+    const phone = normalizeDzPhoneForWhatsApp(shopWhatsAppPhone);
+
+    if (!phone) {
+      toast.error("WhatsApp number is not configured by the shop.");
+      return;
+    }
+
+    if (!order) {
+      toast.error("Order is not loaded yet.");
+      return;
+    }
+
+    const message = buildReceiptMessage(order);
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
+      message,
+    )}`;
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
 
   const handleCancelOrder = async () => {
     const confirmCancel = window.confirm(
@@ -349,19 +437,21 @@ const OrderDetails = () => {
                         </div>
 
                         <p className="mt-1 text-sm text-stone-500">
-                          Qty: {quantity} × {price} DA
+                          Qty: {quantity} × {formatPrice(price)}
                         </p>
 
                         {hasDiscount && (
                           <p className="mt-0.5 text-xs text-stone-400">
                             Old price:{" "}
-                            <span className="line-through">{oldPrice} DA</span>
+                            <span className="line-through">
+                              {formatPrice(oldPrice)}
+                            </span>
                           </p>
                         )}
                       </div>
 
                       <p className="whitespace-nowrap font-bold text-stone-950">
-                        {lineTotal} DA
+                        {formatPrice(lineTotal)}
                       </p>
                     </div>
                   );
@@ -437,7 +527,7 @@ const OrderDetails = () => {
                     <span className="min-w-0">Before discount</span>
 
                     <span className="whitespace-nowrap text-right line-through">
-                      {subtotalBeforeDiscount} DA
+                      {formatPrice(subtotalBeforeDiscount)}
                     </span>
                   </div>
                 )}
@@ -447,7 +537,7 @@ const OrderDetails = () => {
                     <span className="min-w-0">You save</span>
 
                     <span className="whitespace-nowrap text-right">
-                      -{totalSavings} DA
+                      -{formatPrice(totalSavings)}
                     </span>
                   </div>
                 )}
@@ -456,7 +546,7 @@ const OrderDetails = () => {
                   <span className="min-w-0">Subtotal</span>
 
                   <span className="whitespace-nowrap text-right">
-                    {order.subtotalPrice} DA
+                    {formatPrice(order.subtotalPrice)}
                   </span>
                 </div>
 
@@ -464,7 +554,7 @@ const OrderDetails = () => {
                   <span className="min-w-0">Delivery</span>
 
                   <span className="whitespace-nowrap text-right">
-                    {order.deliveryPrice} DA
+                    {formatPrice(order.deliveryPrice)}
                   </span>
                 </div>
 
@@ -472,7 +562,7 @@ const OrderDetails = () => {
                   <span className="min-w-0">Total</span>
 
                   <span className="whitespace-nowrap text-right">
-                    {order.totalPrice} DA
+                    {formatPrice(order.totalPrice)}
                   </span>
                 </div>
               </div>
@@ -557,6 +647,28 @@ const OrderDetails = () => {
                     )}
                   </div>
                 )}
+
+              {canSendBaridiMobReceipt && (
+                <div className="mt-4 rounded-2xl bg-green-50 p-4">
+                  <p className="text-sm font-semibold text-green-700">
+                    BaridiMob receipt
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-stone-700">
+                    After making the transfer, send your receipt screenshot to
+                    the shop on WhatsApp.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={openReceiptWhatsApp}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                  >
+                    <MessageCircle size={17} />
+                    Send receipt on WhatsApp
+                  </button>
+                </div>
+              )}
 
               {paymentSettings.paymentNotice && (
                 <p className="mt-4 text-xs leading-6 text-stone-500">

@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CheckCircle, CreditCard, PackageCheck } from "lucide-react";
+import {
+  CheckCircle,
+  CreditCard,
+  MessageCircle,
+  PackageCheck,
+} from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../api/axios";
 
 const defaultPaymentSettings = {
@@ -34,11 +40,62 @@ const defaultPaymentSettings = {
     "Your order will be confirmed after payment verification when required.",
 };
 
+const defaultSiteSettings = {
+  shopName: "ECLORA",
+  contact: {
+    whatsapp: "",
+  },
+};
+
 const paymentStatusStyles = {
   unpaid: "bg-stone-100 text-stone-600",
   pending: "bg-amber-50 text-amber-600",
   paid: "bg-green-50 text-green-600",
   failed: "bg-red-50 text-red-600",
+};
+
+const formatPrice = (value) => `${Number(value || 0).toLocaleString()} DA`;
+
+const normalizeDzPhoneForWhatsApp = (phone) => {
+  const digits = String(phone || "").replace(/\D/g, "");
+
+  if (!digits) return "";
+
+  if (digits.startsWith("00213")) {
+    return digits.slice(2);
+  }
+
+  if (digits.startsWith("213")) {
+    return digits;
+  }
+
+  if (digits.startsWith("0")) {
+    return `213${digits.slice(1)}`;
+  }
+
+  if (digits.length === 9 && ["5", "6", "7"].includes(digits.charAt(0))) {
+    return `213${digits}`;
+  }
+
+  return digits;
+};
+
+const buildReceiptMessage = (order, shopName) => {
+  const orderNumber = `#${order._id.slice(-6).toUpperCase()}`;
+  const customerName = order.customerInfo?.fullName || "";
+
+  return `Bonjour,
+
+Voici mon reçu BaridiMob pour la commande ${orderNumber}.
+
+Nom : ${customerName}
+Total : ${formatPrice(order.totalPrice)}
+Paiement : BaridiMob
+Statut paiement : en attente de vérification
+
+Je joins le reçu de paiement ici.
+
+Merci.`;
 };
 
 const OrderSuccess = () => {
@@ -48,6 +105,7 @@ const OrderSuccess = () => {
   const [paymentSettings, setPaymentSettings] = useState(
     defaultPaymentSettings,
   );
+  const [siteSettings, setSiteSettings] = useState(defaultSiteSettings);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,9 +113,10 @@ const OrderSuccess = () => {
       try {
         setLoading(true);
 
-        const [orderRes, paymentRes] = await Promise.all([
+        const [orderRes, paymentRes, siteSettingsRes] = await Promise.all([
           api.get(`/orders/${id}`),
           api.get("/payment-settings"),
+          api.get("/site-settings"),
         ]);
 
         setOrder(orderRes.data);
@@ -78,6 +137,15 @@ const OrderSuccess = () => {
             ...paymentRes.data.card,
           },
         });
+
+        setSiteSettings({
+          ...defaultSiteSettings,
+          ...siteSettingsRes.data,
+          contact: {
+            ...defaultSiteSettings.contact,
+            ...siteSettingsRes.data.contact,
+          },
+        });
       } catch (error) {
         console.log("Error fetching order:", error);
       } finally {
@@ -91,6 +159,31 @@ const OrderSuccess = () => {
   const selectedPaymentMethod = order?.paymentMethod
     ? paymentSettings[order.paymentMethod]
     : null;
+
+  const shopWhatsAppPhone = siteSettings.contact?.whatsapp || "";
+  const canSendBaridiMobReceipt =
+    order?.paymentMethod === "baridimob" && order?.paymentStatus === "pending";
+
+  const openReceiptWhatsApp = () => {
+    const phone = normalizeDzPhoneForWhatsApp(shopWhatsAppPhone);
+
+    if (!phone) {
+      toast.error("WhatsApp number is not configured by the shop.");
+      return;
+    }
+
+    if (!order) {
+      toast.error("Order is not loaded yet.");
+      return;
+    }
+
+    const message = buildReceiptMessage(order, siteSettings.shopName);
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
+      message,
+    )}`;
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
 
   const totalSavings = useMemo(() => {
     if (!order?.orderItems?.length) return 0;
@@ -194,7 +287,7 @@ const OrderSuccess = () => {
 
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <p className="text-sm text-stone-500">
-                              Qty: {quantity} × {price} DA
+                              Qty: {quantity} × {formatPrice(price)}
                             </p>
 
                             {hasDiscount && (
@@ -208,13 +301,13 @@ const OrderSuccess = () => {
                             <p className="mt-1 text-xs text-stone-400">
                               Old price:{" "}
                               <span className="line-through">
-                                {oldPrice} DA
+                                {formatPrice(oldPrice)}
                               </span>
                             </p>
                           )}
 
                           <p className="mt-2 font-semibold text-stone-950">
-                            {lineTotal} DA
+                            {formatPrice(lineTotal)}
                           </p>
                         </div>
                       </div>
@@ -229,7 +322,7 @@ const OrderSuccess = () => {
                     <span>Before discount</span>
 
                     <span className="whitespace-nowrap line-through">
-                      {subtotalBeforeDiscount} DA
+                      {formatPrice(subtotalBeforeDiscount)}
                     </span>
                   </div>
                 )}
@@ -239,7 +332,7 @@ const OrderSuccess = () => {
                     <span>You save</span>
 
                     <span className="whitespace-nowrap">
-                      -{totalSavings} DA
+                      -{formatPrice(totalSavings)}
                     </span>
                   </div>
                 )}
@@ -248,7 +341,7 @@ const OrderSuccess = () => {
                   <span>Subtotal</span>
 
                   <span className="whitespace-nowrap">
-                    {order.subtotalPrice} DA
+                    {formatPrice(order.subtotalPrice)}
                   </span>
                 </div>
 
@@ -256,7 +349,7 @@ const OrderSuccess = () => {
                   <span>Delivery</span>
 
                   <span className="whitespace-nowrap">
-                    {order.deliveryPrice} DA
+                    {formatPrice(order.deliveryPrice)}
                   </span>
                 </div>
 
@@ -264,7 +357,7 @@ const OrderSuccess = () => {
                   <span>Total</span>
 
                   <span className="whitespace-nowrap">
-                    {order.totalPrice} DA
+                    {formatPrice(order.totalPrice)}
                   </span>
                 </div>
               </div>
@@ -343,6 +436,28 @@ const OrderSuccess = () => {
                     )}
                   </div>
                 )}
+
+              {canSendBaridiMobReceipt && (
+                <div className="mt-4 rounded-2xl bg-white p-4">
+                  <p className="text-sm font-semibold text-stone-950">
+                    Send your payment receipt
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    After making the BaridiMob transfer, click the button below
+                    and attach your receipt screenshot in WhatsApp.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={openReceiptWhatsApp}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                  >
+                    <MessageCircle size={17} />
+                    Send payment receipt on WhatsApp
+                  </button>
+                </div>
+              )}
 
               {paymentSettings.paymentNotice && (
                 <p className="mt-4 text-xs leading-6 text-stone-500">

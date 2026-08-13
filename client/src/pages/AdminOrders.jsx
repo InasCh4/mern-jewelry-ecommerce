@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   CreditCard,
   Eye,
+  FileText,
   MapPin,
+  MessageCircle,
   Package,
   Phone,
   Receipt,
@@ -48,10 +51,236 @@ const paymentMethodLabels = {
   card: "Card payment",
 };
 
+const defaultSiteSettings = {
+  shopName: "ECLORA",
+};
+
 const formatPrice = (value) => `${Number(value || 0).toLocaleString()} DA`;
 
 const formatPaymentMethod = (method) => {
   return paymentMethodLabels[method] || method || "Unknown";
+};
+
+const normalizeDzPhoneForWhatsApp = (phone) => {
+  const digits = String(phone || "").replace(/\D/g, "");
+
+  if (!digits) return "";
+
+  if (digits.startsWith("00213")) {
+    return digits.slice(2);
+  }
+
+  if (digits.startsWith("213")) {
+    return digits;
+  }
+
+  if (digits.startsWith("0")) {
+    return `213${digits.slice(1)}`;
+  }
+
+  if (digits.length === 9 && ["5", "6", "7"].includes(digits.charAt(0))) {
+    return `213${digits}`;
+  }
+
+  return digits;
+};
+
+const getOrderStatusMessage = (status) => {
+  const messages = {
+    pending: "a bien été reçue",
+    confirmed: "est confirmée",
+    shipped: "est en cours de livraison",
+    delivered: "a été livrée",
+    cancelled: "a été annulée",
+  };
+
+  return messages[status] || "a été mise à jour";
+};
+
+const getPaymentStatusMessage = (status) => {
+  const messages = {
+    unpaid: "non payé",
+    pending: "en attente de vérification",
+    paid: "payé",
+    failed: "échoué",
+  };
+
+  return messages[status] || status || "non défini";
+};
+
+const getPaymentMessageLines = (order) => {
+  if (order.paymentMethod === "cash") {
+    return [
+      "Paiement : à la livraison",
+      `Montant à payer : ${formatPrice(order.totalPrice)}`,
+    ];
+  }
+
+  if (order.paymentMethod === "baridimob") {
+    return [
+      "Paiement : BaridiMob",
+      `Statut paiement : ${getPaymentStatusMessage(order.paymentStatus)}`,
+    ];
+  }
+
+  if (order.paymentMethod === "card") {
+    return [
+      "Paiement : carte bancaire",
+      `Statut paiement : ${getPaymentStatusMessage(order.paymentStatus)}`,
+    ];
+  }
+
+  return [
+    `Paiement : ${formatPaymentMethod(order.paymentMethod)}`,
+    `Statut paiement : ${getPaymentStatusMessage(order.paymentStatus)}`,
+  ];
+};
+
+const buildWhatsAppOrderMessage = (order, shopName) => {
+  const orderNumber = `#${order._id.slice(-6).toUpperCase()}`;
+  const customerName = order.customerInfo?.fullName || "cliente";
+
+  const itemsText =
+    order.orderItems
+      ?.map((item) => `- ${item.name} x${item.quantity}`)
+      .join("\n") || "- Articles de la commande";
+
+  const orderStatusText = getOrderStatusMessage(order.orderStatus);
+  const paymentLines = getPaymentMessageLines(order).join("\n");
+
+  return `Bonjour ${customerName},
+
+Votre commande ${orderNumber} ${orderStatusText}.
+
+Articles :
+${itemsText}
+
+Total : ${formatPrice(order.totalPrice)}
+Livraison : ${order.customerInfo?.commune || ""}, ${
+    order.customerInfo?.wilaya || ""
+  }
+${paymentLines}
+
+Merci pour votre achat chez ${shopName}.`;
+};
+
+const getWorkflowConfig = (order) => {
+  if (!order) {
+    return {
+      label: "Confirm + WhatsApp",
+      disabled: true,
+      updateData: {},
+      help: "",
+    };
+  }
+
+  if (order.orderStatus === "cancelled") {
+    return {
+      label: "Order cancelled",
+      disabled: true,
+      updateData: {},
+      help: "Cancelled orders cannot be confirmed.",
+    };
+  }
+
+  if (order.orderStatus === "delivered") {
+    return {
+      label: "Send WhatsApp only",
+      disabled: false,
+      updateData: {},
+      help: "This order is already delivered.",
+    };
+  }
+
+  if (order.paymentMethod === "cash") {
+    if (order.orderStatus === "confirmed") {
+      return {
+        label: "Send confirmation WhatsApp",
+        disabled: false,
+        updateData: {},
+        help: "Cash orders stay unpaid until delivery.",
+      };
+    }
+
+    return {
+      label: "Confirm order + WhatsApp",
+      disabled: false,
+      updateData: {
+        orderStatus: "confirmed",
+      },
+      help: "For cash on delivery, payment stays unpaid until the client receives the order.",
+    };
+  }
+
+  if (order.paymentMethod === "baridimob") {
+    if (order.paymentStatus === "paid" && order.orderStatus === "confirmed") {
+      return {
+        label: "Send confirmation WhatsApp",
+        disabled: false,
+        updateData: {},
+        help: "Payment and order are already confirmed.",
+      };
+    }
+
+    if (order.paymentStatus === "paid") {
+      return {
+        label: "Confirm order + WhatsApp",
+        disabled: false,
+        updateData: {
+          orderStatus: "confirmed",
+        },
+        help: "Payment is already paid. This action confirms the order.",
+      };
+    }
+
+    return {
+      label: "Confirm payment + order + WhatsApp",
+      disabled: false,
+      updateData: {
+        paymentStatus: "paid",
+        orderStatus: "confirmed",
+      },
+      help: "Use this only after checking the BaridiMob receipt.",
+    };
+  }
+
+  if (order.paymentMethod === "card") {
+    if (order.paymentStatus !== "paid") {
+      return {
+        label: "Waiting for card payment",
+        disabled: true,
+        updateData: {},
+        help: "Card payment should be validated by the payment provider later.",
+      };
+    }
+
+    if (order.orderStatus === "confirmed") {
+      return {
+        label: "Send confirmation WhatsApp",
+        disabled: false,
+        updateData: {},
+        help: "Card payment is paid and order is confirmed.",
+      };
+    }
+
+    return {
+      label: "Confirm order + WhatsApp",
+      disabled: false,
+      updateData: {
+        orderStatus: "confirmed",
+      },
+      help: "Card payment is already paid. This action confirms the order.",
+    };
+  }
+
+  return {
+    label: "Confirm order + WhatsApp",
+    disabled: false,
+    updateData: {
+      orderStatus: "confirmed",
+    },
+    help: "Confirm this order and prepare a WhatsApp message.",
+  };
 };
 
 const getOrderSavings = (order) => {
@@ -74,22 +303,47 @@ const getOrderSavings = (order) => {
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [siteSettings, setSiteSettings] = useState(defaultSiteSettings);
 
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState("");
+  const [workflowUpdatingId, setWorkflowUpdatingId] = useState("");
   const [error, setError] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
 
+  const syncUpdatedOrder = (updatedOrder) => {
+    setOrders((prevOrders) =>
+      prevOrders.map((order) =>
+        order._id === updatedOrder._id ? { ...order, ...updatedOrder } : order,
+      ),
+    );
+
+    setSelectedOrder((prevOrder) =>
+      prevOrder?._id === updatedOrder._id
+        ? { ...prevOrder, ...updatedOrder }
+        : prevOrder,
+    );
+  };
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const res = await api.get("/orders");
-      setOrders(res.data);
+      const [ordersRes, siteSettingsRes] = await Promise.all([
+        api.get("/orders"),
+        api.get("/site-settings"),
+      ]);
+
+      setOrders(ordersRes.data);
+
+      setSiteSettings({
+        ...defaultSiteSettings,
+        ...siteSettingsRes.data,
+      });
     } catch (error) {
       const message = error.response?.data?.message || "Could not load orders.";
 
@@ -103,6 +357,139 @@ const AdminOrders = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  const openWhatsAppForOrder = (order) => {
+    const phone = normalizeDzPhoneForWhatsApp(order.customerInfo?.phone);
+
+    if (!phone) {
+      toast.error("Customer phone number is missing.");
+      return;
+    }
+
+    const message = buildWhatsAppOrderMessage(
+      order,
+      siteSettings.shopName || "ECLORA",
+    );
+
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
+      message,
+    )}`;
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const updateOrder = async (orderId, updateData) => {
+    const isOrderStatusUpdate = Object.prototype.hasOwnProperty.call(
+      updateData,
+      "orderStatus",
+    );
+
+    const isPaymentStatusUpdate = Object.prototype.hasOwnProperty.call(
+      updateData,
+      "paymentStatus",
+    );
+
+    const toastId = toast.loading(
+      isOrderStatusUpdate
+        ? "Updating order status..."
+        : "Updating payment status...",
+    );
+
+    try {
+      setUpdatingId(orderId);
+      setError("");
+
+      const res = await api.patch(`/orders/${orderId}/status`, updateData);
+
+      await sleep(500);
+
+      syncUpdatedOrder(res.data);
+
+      if (isOrderStatusUpdate) {
+        toast.success(`Order marked as ${res.data.orderStatus}.`, {
+          id: toastId,
+        });
+      }
+
+      if (isPaymentStatusUpdate) {
+        toast.success(`Payment marked as ${res.data.paymentStatus}.`, {
+          id: toastId,
+        });
+      }
+
+      return res.data;
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Could not update order.";
+
+      setError(message);
+
+      toast.error(message, {
+        id: toastId,
+      });
+
+      return null;
+    } finally {
+      setUpdatingId("");
+    }
+  };
+
+  const handleWorkflowConfirm = async (order) => {
+    const workflow = getWorkflowConfig(order);
+
+    if (workflow.disabled) {
+      toast.error(workflow.help || "This action is not available.");
+      return;
+    }
+
+    const shouldUpdateOrder = Object.keys(workflow.updateData).length > 0;
+
+    if (!shouldUpdateOrder) {
+      openWhatsAppForOrder(order);
+      return;
+    }
+
+    const confirmMessage =
+      order.paymentMethod === "baridimob" && order.paymentStatus !== "paid"
+        ? "Did you verify the BaridiMob receipt before confirming payment?"
+        : "Confirm this order and open WhatsApp message?";
+
+    const isConfirmed = window.confirm(confirmMessage);
+
+    if (!isConfirmed) return;
+
+    const toastId = toast.loading("Confirming order workflow...");
+
+    try {
+      setWorkflowUpdatingId(order._id);
+      setError("");
+
+      const res = await api.patch(`/orders/${order._id}/status`, {
+        ...workflow.updateData,
+      });
+
+      await sleep(500);
+
+      syncUpdatedOrder(res.data);
+
+      toast.success("Order workflow confirmed. WhatsApp message is ready.", {
+        id: toastId,
+      });
+
+      openWhatsAppForOrder(res.data);
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Could not confirm this order.";
+
+      setError(message);
+
+      toast.error(message, {
+        id: toastId,
+      });
+    } finally {
+      setWorkflowUpdatingId("");
+    }
+  };
 
   const stats = useMemo(() => {
     return {
@@ -149,69 +536,11 @@ const AdminOrders = () => {
     });
   }, [orders, searchQuery, orderStatusFilter, paymentStatusFilter]);
 
-  const updateOrder = async (orderId, updateData) => {
-    const isOrderStatusUpdate = Object.prototype.hasOwnProperty.call(
-      updateData,
-      "orderStatus",
-    );
-
-    const isPaymentStatusUpdate = Object.prototype.hasOwnProperty.call(
-      updateData,
-      "paymentStatus",
-    );
-
-    const toastId = toast.loading(
-      isOrderStatusUpdate
-        ? "Updating order status..."
-        : "Updating payment status...",
-    );
-
-    try {
-      setUpdatingId(orderId);
-      setError("");
-
-      const res = await api.patch(`/orders/${orderId}/status`, updateData);
-
-      await sleep(500);
-
-      setOrders((prevOrders) =>
-        prevOrders.map((order) =>
-          order._id === orderId ? { ...order, ...res.data } : order,
-        ),
-      );
-
-      setSelectedOrder((prevOrder) =>
-        prevOrder?._id === orderId ? { ...prevOrder, ...res.data } : prevOrder,
-      );
-
-      if (isOrderStatusUpdate) {
-        toast.success(`Order marked as ${res.data.orderStatus}.`, {
-          id: toastId,
-        });
-      }
-
-      if (isPaymentStatusUpdate) {
-        toast.success(`Payment marked as ${res.data.paymentStatus}.`, {
-          id: toastId,
-        });
-      }
-    } catch (error) {
-      const message =
-        error.response?.data?.message || "Could not update order.";
-
-      setError(message);
-
-      toast.error(message, {
-        id: toastId,
-      });
-    } finally {
-      setUpdatingId("");
-    }
-  };
-
   const selectedOrderSavings = getOrderSavings(selectedOrder);
   const selectedSubtotalBeforeDiscount =
     Number(selectedOrder?.subtotalPrice || 0) + selectedOrderSavings;
+
+  const selectedWorkflow = getWorkflowConfig(selectedOrder);
 
   if (loading) {
     return (
@@ -359,7 +688,7 @@ const AdminOrders = () => {
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[1380px] border-collapse">
+            <table className="w-full min-w-[1480px] border-collapse">
               <thead>
                 <tr className="text-left text-sm text-stone-400">
                   <th className="w-[130px] py-4 pr-5 font-medium">Order</th>
@@ -370,7 +699,7 @@ const AdminOrders = () => {
                     Order status
                   </th>
                   <th className="w-[230px] py-4 pr-5 font-medium">Payment</th>
-                  <th className="w-[120px] py-4 text-right font-medium">
+                  <th className="w-[230px] py-4 text-right font-medium">
                     Action
                   </th>
                 </tr>
@@ -474,14 +803,25 @@ const AdminOrders = () => {
                     </td>
 
                     <td className="py-5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOrder(order)}
-                        className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-5 py-2 text-sm text-stone-700 transition hover:border-stone-950 hover:bg-stone-950 hover:text-white"
-                      >
-                        <Eye size={15} />
-                        Details
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openWhatsAppForOrder(order)}
+                          className="inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-600 transition hover:bg-green-100"
+                        >
+                          <MessageCircle size={15} />
+                          WhatsApp
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrder(order)}
+                          className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-5 py-2 text-sm text-stone-700 transition hover:border-stone-950 hover:bg-stone-950 hover:text-white"
+                        >
+                          <Eye size={15} />
+                          Details
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -670,13 +1010,60 @@ const AdminOrders = () => {
                     </p>
 
                     <p className="mt-2 text-sm leading-6 text-stone-700">
-                      After checking the transfer receipt, change payment status
-                      to <span className="font-bold">paid</span>. If the
-                      transfer is invalid, use{" "}
-                      <span className="font-bold">failed</span>.
+                      After checking the transfer receipt, use the workflow
+                      action below to mark payment as{" "}
+                      <span className="font-bold">paid</span> and confirm the
+                      order.
                     </p>
                   </div>
                 )}
+
+              <div className="rounded-3xl bg-green-50 p-5">
+                <p className="font-bold text-green-700">Admin workflow</p>
+
+                <p className="mt-2 text-sm leading-6 text-stone-700">
+                  {selectedWorkflow.help ||
+                    "Confirm the order and prepare a WhatsApp message."}
+                </p>
+
+                <div className="mt-4 grid gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleWorkflowConfirm(selectedOrder)}
+                    disabled={
+                      selectedWorkflow.disabled ||
+                      workflowUpdatingId === selectedOrder._id
+                    }
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+                  >
+                    <MessageCircle size={17} />
+                    {workflowUpdatingId === selectedOrder._id
+                      ? "Processing..."
+                      : selectedWorkflow.label}
+                  </button>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => openWhatsAppForOrder(selectedOrder)}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
+                    >
+                      <MessageCircle size={17} />
+                      WhatsApp only
+                    </button>
+
+                    <Link
+                      to={`/invoice/${selectedOrder._id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
+                    >
+                      <FileText size={17} />
+                      Open invoice
+                    </Link>
+                  </div>
+                </div>
+              </div>
 
               <div className="space-y-3">
                 <h3 className="font-bold text-stone-950">Products</h3>
