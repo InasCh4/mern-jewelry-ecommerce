@@ -374,6 +374,15 @@ const OrderSuccess = () => {
             Continue Shopping
           </Link>
 
+          {order && (
+            <Link
+              to={`/invoice/${order._id}`}
+              className="rounded-full bg-stone-950 px-7 py-3 text-white transition hover:bg-stone-700"
+            >
+              Invoice
+            </Link>
+          )}
+
           <Link
             to="/"
             className="rounded-full border border-stone-300 px-7 py-3 text-stone-700 transition hover:border-stone-900 hover:text-stone-950"

@@ -6,6 +6,7 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import AdminLayout from "./components/AdminLayout";
+import Footer from "./components/Footer";
 
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
@@ -19,18 +20,17 @@ import MyOrders from "./pages/MyOrders";
 import Account from "./pages/Account";
 import OrderDetails from "./pages/OrderDetails";
 import Wishlist from "./pages/Wishlist";
+import Invoice from "./pages/Invoice";
 
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProducts from "./pages/AdminProducts";
 import AdminOrders from "./pages/AdminOrders";
 import AdminDeliveryRates from "./pages/AdminDeliveryRates";
-
 import AdminSiteSettings from "./pages/AdminSiteSettings";
-
-import Footer from "./components/Footer";
 import AdminCustomers from "./pages/AdminCustomers";
 import AdminPaymentSettings from "./pages/AdminPaymentSettings";
 import AdminAnalytics from "./pages/AdminAnalytics";
+
 function ScrollToTop() {
   const { pathname } = useLocation();
 
@@ -65,12 +65,15 @@ function AdminPage({ children }) {
 
 function AppContent() {
   const location = useLocation();
+
   const isAdminPage = location.pathname.startsWith("/admin");
+  const isInvoicePage = location.pathname.startsWith("/invoice");
 
   return (
     <>
       <ScrollToTop />
-      {!isAdminPage && <Navbar />}
+
+      {!isAdminPage && !isInvoicePage && <Navbar />}
 
       <Toaster
         position="top-center"
@@ -152,6 +155,15 @@ function AppContent() {
         />
 
         <Route
+          path="/invoice/:id"
+          element={
+            <ProtectedRoute>
+              <Invoice />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/admin"
           element={
             <AdminPage>
@@ -186,6 +198,7 @@ function AppContent() {
             </AdminPage>
           }
         />
+
         <Route
           path="/admin/site-settings"
           element={
@@ -194,6 +207,7 @@ function AppContent() {
             </AdminPage>
           }
         />
+
         <Route
           path="/admin/customers"
           element={
@@ -202,6 +216,7 @@ function AppContent() {
             </AdminPage>
           }
         />
+
         <Route
           path="/admin/payment-settings"
           element={
@@ -210,6 +225,7 @@ function AppContent() {
             </AdminPage>
           }
         />
+
         <Route
           path="/admin/analytics"
           element={

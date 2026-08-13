@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   CreditCard,
+  FileText,
   MapPin,
   Package,
   Phone,
@@ -230,13 +231,23 @@ const OrderDetails = () => {
             </p>
           </div>
 
-          <Link
-            to="/my-orders"
-            className="inline-flex w-fit items-center gap-2 rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
-          >
-            <ArrowLeft size={16} />
-            Back to my orders
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/my-orders"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+            >
+              <ArrowLeft size={16} />
+              Back to my orders
+            </Link>
+
+            <Link
+              to={`/invoice/${order._id}`}
+              className="inline-flex w-fit items-center gap-2 rounded-full bg-stone-950 px-5 py-2 text-sm font-semibold text-white transition hover:bg-stone-700"
+            >
+              <FileText size={16} />
+              Invoice
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
@@ -560,6 +571,7 @@ const OrderDetails = () => {
               <div className="mt-5 rounded-2xl bg-stone-50 p-4">
                 <div className="flex items-center gap-3 text-stone-950">
                   <Truck size={18} />
+
                   <p className="font-bold capitalize">{order.deliveryMethod}</p>
                 </div>
 

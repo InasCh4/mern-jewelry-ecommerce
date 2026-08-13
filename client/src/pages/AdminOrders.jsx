@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { Package, Search } from "lucide-react";
+import {
+  CreditCard,
+  Eye,
+  MapPin,
+  Package,
+  Phone,
+  Receipt,
+  RefreshCcw,
+  Search,
+  Truck,
+  User,
+  X,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
 
@@ -30,6 +42,18 @@ const paymentStyles = {
   failed: "bg-red-50 text-red-600",
 };
 
+const paymentMethodLabels = {
+  cash: "Cash on delivery",
+  baridimob: "BaridiMob",
+  card: "Card payment",
+};
+
+const formatPrice = (value) => `${Number(value || 0).toLocaleString()} DA`;
+
+const formatPaymentMethod = (method) => {
+  return paymentMethodLabels[method] || method || "Unknown";
+};
+
 const getOrderSavings = (order) => {
   if (!order?.orderItems?.length) return 0;
 
@@ -50,12 +74,14 @@ const getOrderSavings = (order) => {
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState("");
   const [error, setError] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
 
   const fetchOrders = async () => {
     try {
@@ -86,6 +112,10 @@ const AdminOrders = () => {
         .length,
       cancelled: orders.filter((order) => order.orderStatus === "cancelled")
         .length,
+      paymentPending: orders.filter(
+        (order) => order.paymentStatus === "pending",
+      ).length,
+      paid: orders.filter((order) => order.paymentStatus === "paid").length,
     };
   }, [orders]);
 
@@ -99,18 +129,25 @@ const AdminOrders = () => {
         order.customerInfo?.fullName?.toLowerCase().includes(query) ||
         order.customerInfo?.phone?.toLowerCase().includes(query) ||
         order.customerInfo?.wilaya?.toLowerCase().includes(query) ||
+        order.customerInfo?.commune?.toLowerCase().includes(query) ||
         order.user?.name?.toLowerCase().includes(query) ||
         order.user?.email?.toLowerCase().includes(query) ||
+        order.paymentMethod?.toLowerCase().includes(query) ||
+        order.paymentStatus?.toLowerCase().includes(query) ||
         order.orderItems?.some((item) =>
           item.name?.toLowerCase().includes(query),
         );
 
-      const matchesStatus =
-        statusFilter === "all" || order.orderStatus === statusFilter;
+      const matchesOrderStatus =
+        orderStatusFilter === "all" || order.orderStatus === orderStatusFilter;
 
-      return matchesSearch && matchesStatus;
+      const matchesPaymentStatus =
+        paymentStatusFilter === "all" ||
+        order.paymentStatus === paymentStatusFilter;
+
+      return matchesSearch && matchesOrderStatus && matchesPaymentStatus;
     });
-  }, [orders, searchQuery, statusFilter]);
+  }, [orders, searchQuery, orderStatusFilter, paymentStatusFilter]);
 
   const updateOrder = async (orderId, updateData) => {
     const isOrderStatusUpdate = Object.prototype.hasOwnProperty.call(
@@ -135,7 +172,7 @@ const AdminOrders = () => {
 
       const res = await api.patch(`/orders/${orderId}/status`, updateData);
 
-      await sleep(600);
+      await sleep(500);
 
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
@@ -172,6 +209,10 @@ const AdminOrders = () => {
     }
   };
 
+  const selectedOrderSavings = getOrderSavings(selectedOrder);
+  const selectedSubtotalBeforeDiscount =
+    Number(selectedOrder?.subtotalPrice || 0) + selectedOrderSavings;
+
   if (loading) {
     return (
       <main className="min-h-[70vh] bg-stone-50 px-6 py-16">
@@ -180,23 +221,30 @@ const AdminOrders = () => {
     );
   }
 
-  const selectedOrderSavings = getOrderSavings(selectedOrder);
-  const selectedSubtotalBeforeDiscount =
-    Number(selectedOrder?.subtotalPrice || 0) + selectedOrderSavings;
-
   return (
     <main className="min-h-[80vh] bg-stone-50 px-6 py-10">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
-            Admin
-          </p>
+        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
+              Admin
+            </p>
 
-          <h1 className="mt-3 text-4xl font-bold text-stone-950">Orders</h1>
+            <h1 className="mt-3 text-4xl font-bold text-stone-950">Orders</h1>
 
-          <p className="mt-3 text-stone-500">
-            Manage customer orders, delivery status, and payment status.
-          </p>
+            <p className="mt-3 text-stone-500">
+              Manage customer orders, delivery status, and payment validation.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={fetchOrders}
+            className="inline-flex w-fit items-center gap-2 rounded-full border border-stone-300 bg-white px-5 py-3 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+          >
+            <RefreshCcw size={17} />
+            Refresh
+          </button>
         </div>
 
         {error && (
@@ -205,16 +253,18 @@ const AdminOrders = () => {
           </p>
         )}
 
-        <div className="mb-6 grid gap-5 md:grid-cols-4">
+        <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-6">
           <div className="rounded-[2rem] bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Total orders</p>
+
             <h2 className="mt-2 text-3xl font-bold text-stone-950">
               {stats.total}
             </h2>
           </div>
 
           <div className="rounded-[2rem] bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Pending</p>
+            <p className="text-sm text-stone-500">Pending orders</p>
+
             <h2 className="mt-2 text-3xl font-bold text-amber-500">
               {stats.pending}
             </h2>
@@ -222,6 +272,7 @@ const AdminOrders = () => {
 
           <div className="rounded-[2rem] bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Delivered</p>
+
             <h2 className="mt-2 text-3xl font-bold text-green-600">
               {stats.delivered}
             </h2>
@@ -229,14 +280,31 @@ const AdminOrders = () => {
 
           <div className="rounded-[2rem] bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Cancelled</p>
+
             <h2 className="mt-2 text-3xl font-bold text-red-600">
               {stats.cancelled}
+            </h2>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Payment pending</p>
+
+            <h2 className="mt-2 text-3xl font-bold text-amber-500">
+              {stats.paymentPending}
+            </h2>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Paid</p>
+
+            <h2 className="mt-2 text-3xl font-bold text-green-600">
+              {stats.paid}
             </h2>
           </div>
         </div>
 
         <section className="rounded-[2rem] bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-stone-100 pb-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 border-b border-stone-100 pb-6 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <h2 className="text-2xl font-bold text-stone-950">Order List</h2>
 
@@ -245,7 +313,7 @@ const AdminOrders = () => {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-[1.5fr_1fr]">
+            <div className="grid gap-3 md:grid-cols-[1.5fr_1fr_1fr]">
               <div className="relative">
                 <Search
                   size={18}
@@ -256,18 +324,32 @@ const AdminOrders = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-2xl border border-stone-200 px-11 py-3 outline-none focus:border-stone-900"
-                  placeholder="Search client, phone, product..."
+                  placeholder="Search client, phone, product, payment..."
                 />
               </div>
 
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                value={orderStatusFilter}
+                onChange={(e) => setOrderStatusFilter(e.target.value)}
                 className="rounded-2xl border border-stone-200 px-4 py-3 capitalize outline-none focus:border-stone-900"
               >
-                <option value="all">All status</option>
+                <option value="all">All orders</option>
 
                 {orderStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                className="rounded-2xl border border-stone-200 px-4 py-3 capitalize outline-none focus:border-stone-900"
+              >
+                <option value="all">All payments</option>
+
+                {paymentStatuses.map((status) => (
                   <option key={status} value={status}>
                     {status}
                   </option>
@@ -277,17 +359,17 @@ const AdminOrders = () => {
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[1250px] border-collapse">
+            <table className="w-full min-w-[1380px] border-collapse">
               <thead>
                 <tr className="text-left text-sm text-stone-400">
                   <th className="w-[130px] py-4 pr-5 font-medium">Order</th>
-                  <th className="w-[230px] py-4 pr-5 font-medium">Customer</th>
+                  <th className="w-[240px] py-4 pr-5 font-medium">Customer</th>
                   <th className="w-[180px] py-4 pr-5 font-medium">Location</th>
-                  <th className="w-[130px] py-4 pr-6 font-medium">Total</th>
+                  <th className="w-[140px] py-4 pr-6 font-medium">Total</th>
                   <th className="w-[170px] py-4 pr-5 font-medium">
                     Order status
                   </th>
-                  <th className="w-[150px] py-4 pr-5 font-medium">Payment</th>
+                  <th className="w-[230px] py-4 pr-5 font-medium">Payment</th>
                   <th className="w-[120px] py-4 text-right font-medium">
                     Action
                   </th>
@@ -315,12 +397,12 @@ const AdminOrders = () => {
                         {order.customerInfo?.fullName}
                       </p>
 
-                      <p className="text-xs text-stone-500">
+                      <p className="mt-1 text-xs text-stone-500">
                         {order.customerInfo?.phone}
                       </p>
 
                       <p className="mt-1 max-w-[210px] truncate text-xs text-stone-400">
-                        User: {order.user?.email || "Old order / no user"}
+                        {order.user?.email || "Old order / no user"}
                       </p>
                     </td>
 
@@ -334,9 +416,9 @@ const AdminOrders = () => {
                       </p>
                     </td>
 
-                    <td className="w-[130px] py-5 pr-6">
+                    <td className="w-[140px] py-5 pr-6">
                       <span className="block whitespace-nowrap text-base font-semibold text-stone-950">
-                        {order.totalPrice} DA
+                        {formatPrice(order.totalPrice)}
                       </span>
                     </td>
 
@@ -363,33 +445,41 @@ const AdminOrders = () => {
                     </td>
 
                     <td className="py-5 pr-5">
-                      <select
-                        value={order.paymentStatus}
-                        disabled={updatingId === order._id}
-                        onChange={(e) =>
-                          updateOrder(order._id, {
-                            paymentStatus: e.target.value,
-                          })
-                        }
-                        className={`min-w-[115px] rounded-full px-3 py-2 text-xs font-semibold capitalize outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
-                          paymentStyles[order.paymentStatus] ||
-                          "bg-stone-100 text-stone-600"
-                        }`}
-                      >
-                        {paymentStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex flex-col gap-2">
+                        <p className="flex items-center gap-2 text-xs font-semibold text-stone-500">
+                          <CreditCard size={14} />
+                          {formatPaymentMethod(order.paymentMethod)}
+                        </p>
+
+                        <select
+                          value={order.paymentStatus || "unpaid"}
+                          disabled={updatingId === order._id}
+                          onChange={(e) =>
+                            updateOrder(order._id, {
+                              paymentStatus: e.target.value,
+                            })
+                          }
+                          className={`min-w-[120px] rounded-full px-3 py-2 text-xs font-semibold capitalize outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                            paymentStyles[order.paymentStatus] ||
+                            "bg-stone-100 text-stone-600"
+                          }`}
+                        >
+                          {paymentStatuses.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </td>
 
                     <td className="py-5 text-right">
                       <button
                         type="button"
                         onClick={() => setSelectedOrder(order)}
-                        className="rounded-full border border-stone-200 px-5 py-2 text-sm text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                        className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-5 py-2 text-sm text-stone-700 transition hover:border-stone-950 hover:bg-stone-950 hover:text-white"
                       >
+                        <Eye size={15} />
                         Details
                       </button>
                     </td>
@@ -420,8 +510,8 @@ const AdminOrders = () => {
             aria-label="Close order details"
           />
 
-          <aside className="relative z-10 ml-auto h-full max-w-xl overflow-y-auto rounded-[2rem] bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4 border-b border-stone-100 pb-5">
+          <aside className="relative z-10 ml-auto h-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white p-6 shadow-xl">
+            <div className="sticky top-0 z-10 -mx-6 -mt-6 flex items-start justify-between gap-4 border-b border-stone-100 bg-white/95 p-6 backdrop-blur-xl">
               <div>
                 <p className="text-sm uppercase tracking-[0.3em] text-stone-400">
                   Order details
@@ -430,52 +520,163 @@ const AdminOrders = () => {
                 <h2 className="mt-2 text-2xl font-bold text-stone-950">
                   #{selectedOrder._id.slice(-6).toUpperCase()}
                 </h2>
+
+                <p className="mt-1 text-sm text-stone-500">
+                  {new Date(selectedOrder.createdAt).toLocaleString("en-GB")}
+                </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="rounded-full bg-stone-100 px-4 py-2 text-sm text-stone-600 hover:bg-stone-200"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200"
+                aria-label="Close drawer"
               >
-                Close
+                <X size={18} />
               </button>
             </div>
 
             <div className="mt-6 space-y-5">
-              <div className="rounded-2xl bg-stone-50 p-4">
-                <h3 className="font-bold text-stone-950">Customer</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-3xl bg-stone-50 p-5">
+                  <div className="flex items-center gap-3 text-stone-950">
+                    <User size={18} />
+                    <h3 className="font-bold">Customer</h3>
+                  </div>
 
-                <p className="mt-2 text-stone-600">
-                  {selectedOrder.customerInfo?.fullName}
-                </p>
-
-                <p className="text-stone-600">
-                  {selectedOrder.customerInfo?.phone}
-                </p>
-
-                <p className="text-stone-500">
-                  {selectedOrder.user?.email || "Old order / no user"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-stone-50 p-4">
-                <h3 className="font-bold text-stone-950">Delivery address</h3>
-
-                <p className="mt-2 text-stone-600">
-                  {selectedOrder.customerInfo?.address}
-                </p>
-
-                <p className="mt-1 text-sm text-stone-500">
-                  {selectedOrder.customerInfo?.commune},{" "}
-                  {selectedOrder.customerInfo?.wilaya}
-                </p>
-
-                {selectedOrder.customerInfo?.note && (
-                  <p className="mt-3 rounded-xl bg-white p-3 text-sm text-stone-500">
-                    Note: {selectedOrder.customerInfo.note}
+                  <p className="mt-4 text-lg font-bold text-stone-950">
+                    {selectedOrder.customerInfo?.fullName}
                   </p>
-                )}
+
+                  <p className="mt-2 flex items-center gap-2 text-stone-600">
+                    <Phone size={16} />
+                    {selectedOrder.customerInfo?.phone}
+                  </p>
+
+                  <p className="mt-2 text-sm text-stone-500">
+                    {selectedOrder.user?.email || "Old order / no user"}
+                  </p>
+                </div>
+
+                <div className="rounded-3xl bg-stone-50 p-5">
+                  <div className="flex items-center gap-3 text-stone-950">
+                    <MapPin size={18} />
+                    <h3 className="font-bold">Address</h3>
+                  </div>
+
+                  <p className="mt-4 text-lg font-bold text-stone-950">
+                    {selectedOrder.customerInfo?.wilaya},{" "}
+                    {selectedOrder.customerInfo?.commune}
+                  </p>
+
+                  <p className="mt-2 leading-7 text-stone-600">
+                    {selectedOrder.customerInfo?.address}
+                  </p>
+                </div>
               </div>
+
+              {selectedOrder.customerInfo?.note && (
+                <div className="rounded-3xl bg-amber-50 p-5">
+                  <p className="text-sm font-semibold text-amber-700">
+                    Customer note
+                  </p>
+
+                  <p className="mt-2 text-stone-700">
+                    {selectedOrder.customerInfo.note}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-3xl border border-stone-100 p-5">
+                  <div className="flex items-center gap-2 text-stone-950">
+                    <Truck size={18} />
+                    <p className="font-bold">Delivery</p>
+                  </div>
+
+                  <p className="mt-3 font-bold capitalize text-stone-950">
+                    {selectedOrder.deliveryMethod}
+                  </p>
+
+                  <p className="mt-1 text-sm text-stone-500">
+                    {formatPrice(selectedOrder.deliveryPrice)}
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-stone-100 p-5">
+                  <div className="flex items-center gap-2 text-stone-950">
+                    <CreditCard size={18} />
+                    <p className="font-bold">Payment</p>
+                  </div>
+
+                  <p className="mt-3 font-bold text-stone-950">
+                    {formatPaymentMethod(selectedOrder.paymentMethod)}
+                  </p>
+
+                  <select
+                    value={selectedOrder.paymentStatus || "unpaid"}
+                    disabled={updatingId === selectedOrder._id}
+                    onChange={(e) =>
+                      updateOrder(selectedOrder._id, {
+                        paymentStatus: e.target.value,
+                      })
+                    }
+                    className={`mt-3 w-full rounded-2xl px-3 py-3 text-sm font-semibold capitalize outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                      paymentStyles[selectedOrder.paymentStatus] ||
+                      "bg-stone-100 text-stone-600"
+                    }`}
+                  >
+                    {paymentStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="rounded-3xl border border-stone-100 p-5">
+                  <div className="flex items-center gap-2 text-stone-950">
+                    <Receipt size={18} />
+                    <p className="font-bold">Order status</p>
+                  </div>
+
+                  <select
+                    value={selectedOrder.orderStatus}
+                    disabled={updatingId === selectedOrder._id}
+                    onChange={(e) =>
+                      updateOrder(selectedOrder._id, {
+                        orderStatus: e.target.value,
+                      })
+                    }
+                    className={`mt-3 w-full rounded-2xl px-3 py-3 text-sm font-semibold capitalize outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                      statusStyles[selectedOrder.orderStatus] ||
+                      "bg-stone-100 text-stone-600"
+                    }`}
+                  >
+                    {orderStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {selectedOrder.paymentMethod === "baridimob" &&
+                selectedOrder.paymentStatus === "pending" && (
+                  <div className="rounded-3xl bg-amber-50 p-5">
+                    <p className="font-bold text-amber-700">
+                      BaridiMob payment pending
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-stone-700">
+                      After checking the transfer receipt, change payment status
+                      to <span className="font-bold">paid</span>. If the
+                      transfer is invalid, use{" "}
+                      <span className="font-bold">failed</span>.
+                    </p>
+                  </div>
+                )}
 
               <div className="space-y-3">
                 <h3 className="font-bold text-stone-950">Products</h3>
@@ -521,19 +722,21 @@ const AdminOrders = () => {
                         </div>
 
                         <p className="text-sm text-stone-500">
-                          Qty: {quantity} × {price} DA
+                          Qty: {quantity} × {formatPrice(price)}
                         </p>
 
                         {hasDiscount && (
                           <p className="text-xs text-stone-400">
                             Old price:{" "}
-                            <span className="line-through">{oldPrice} DA</span>
+                            <span className="line-through">
+                              {formatPrice(oldPrice)}
+                            </span>
                           </p>
                         )}
                       </div>
 
                       <p className="whitespace-nowrap text-sm font-bold text-stone-950">
-                        {lineTotal} DA
+                        {formatPrice(lineTotal)}
                       </p>
                     </div>
                   );
@@ -546,7 +749,7 @@ const AdminOrders = () => {
                     <span>Before discount</span>
 
                     <span className="whitespace-nowrap line-through">
-                      {selectedSubtotalBeforeDiscount} DA
+                      {formatPrice(selectedSubtotalBeforeDiscount)}
                     </span>
                   </div>
                 )}
@@ -556,7 +759,7 @@ const AdminOrders = () => {
                     <span>You save</span>
 
                     <span className="whitespace-nowrap">
-                      -{selectedOrderSavings} DA
+                      -{formatPrice(selectedOrderSavings)}
                     </span>
                   </div>
                 )}
@@ -565,7 +768,7 @@ const AdminOrders = () => {
                   <span>Subtotal</span>
 
                   <span className="whitespace-nowrap">
-                    {selectedOrder.subtotalPrice} DA
+                    {formatPrice(selectedOrder.subtotalPrice)}
                   </span>
                 </div>
 
@@ -573,7 +776,7 @@ const AdminOrders = () => {
                   <span>Delivery</span>
 
                   <span className="whitespace-nowrap">
-                    {selectedOrder.deliveryPrice} DA
+                    {formatPrice(selectedOrder.deliveryPrice)}
                   </span>
                 </div>
 
@@ -581,7 +784,7 @@ const AdminOrders = () => {
                   <span>Total</span>
 
                   <span className="whitespace-nowrap">
-                    {selectedOrder.totalPrice} DA
+                    {formatPrice(selectedOrder.totalPrice)}
                   </span>
                 </div>
               </div>

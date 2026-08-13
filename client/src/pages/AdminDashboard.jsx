@@ -1,117 +1,159 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  PackageCheck,
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  CircleDollarSign,
+  Package,
+  RefreshCcw,
+  Settings,
   ShoppingBag,
   Truck,
-  XCircle,
-  Eye,
-  X,
-  Phone,
-  MapPin,
-  User,
+  Users,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "../api/axios";
 
-const statusOptions = [
-  "pending",
-  "confirmed",
-  "shipped",
-  "delivered",
-  "cancelled",
-];
-
-const getStatusClass = (status) => {
-  switch (status) {
-    case "confirmed":
-      return "bg-blue-50 text-blue-600";
-    case "shipped":
-      return "bg-amber-50 text-amber-600";
-    case "delivered":
-      return "bg-green-50 text-green-600";
-    case "cancelled":
-      return "bg-red-50 text-red-600";
-    default:
-      return "bg-stone-100 text-stone-600";
-  }
+const statusStyles = {
+  pending: "bg-amber-50 text-amber-600",
+  confirmed: "bg-blue-50 text-blue-600",
+  shipped: "bg-purple-50 text-purple-600",
+  delivered: "bg-green-50 text-green-600",
+  cancelled: "bg-red-50 text-red-600",
 };
 
-const AdminDashboard = () => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState(null);
+const formatPrice = (value) => `${Number(value || 0).toLocaleString()} DA`;
 
-  const fetchOrders = async () => {
+const AdminDashboard = () => {
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboard = async () => {
     try {
       setLoading(true);
 
-      const res = await api.get("/orders");
-      setOrders(res.data);
+      const res = await api.get("/analytics/admin");
+      setAnalytics(res.data);
     } catch (error) {
-      console.log("Error fetching orders:", error);
+      toast.error(
+        error.response?.data?.message || "Could not load dashboard data.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const updateStatus = async (orderId, orderStatus) => {
-    try {
-      setUpdatingId(orderId);
-
-      const res = await api.patch(`/orders/${orderId}/status`, {
-        orderStatus,
-      });
-
-      setOrders((prevOrders) =>
-        prevOrders.map((order) => (order._id === orderId ? res.data : order)),
-      );
-
-      setSelectedOrder((prevOrder) =>
-        prevOrder?._id === orderId ? res.data : prevOrder,
-      );
-    } catch (error) {
-      console.log("Error updating order:", error);
-      alert(error.response?.data?.message || "Could not update order status.");
-    } finally {
-      setUpdatingId("");
-    }
-  };
-
   useEffect(() => {
-    fetchOrders();
+    fetchDashboard();
   }, []);
 
-  const totalRevenue = orders.reduce(
-    (total, order) =>
-      order.orderStatus !== "cancelled" ? total + order.totalPrice : total,
-    0,
-  );
+  const maxMonthlyRevenue = useMemo(() => {
+    if (!analytics?.monthlyRevenue?.length) return 1;
 
-  const pendingOrders = orders.filter(
-    (order) => order.orderStatus === "pending",
-  ).length;
-
-  const deliveredOrders = orders.filter(
-    (order) => order.orderStatus === "delivered",
-  ).length;
-
-  const cancelledOrders = orders.filter(
-    (order) => order.orderStatus === "cancelled",
-  ).length;
+    return Math.max(
+      ...analytics.monthlyRevenue.map((month) => Number(month.revenue || 0)),
+      1,
+    );
+  }, [analytics]);
 
   if (loading) {
     return (
       <main className="min-h-[70vh] bg-stone-50 px-6 py-16">
-        <p className="text-center text-stone-500">Loading admin dashboard...</p>
+        <p className="text-center text-stone-500">Loading dashboard...</p>
       </main>
     );
   }
 
+  if (!analytics) {
+    return (
+      <main className="min-h-[70vh] bg-stone-50 px-6 py-16">
+        <div className="mx-auto max-w-2xl rounded-[2rem] bg-white p-10 text-center shadow-sm">
+          <h1 className="text-2xl font-bold text-stone-950">
+            Could not load dashboard
+          </h1>
+
+          <p className="mt-3 text-stone-500">
+            Please refresh or check the backend server.
+          </p>
+
+          <button
+            type="button"
+            onClick={fetchDashboard}
+            className="mt-6 rounded-full bg-stone-950 px-6 py-3 text-white transition hover:bg-stone-700"
+          >
+            Try again
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const cards = analytics.cards || {};
+
+  const mainCards = [
+    {
+      label: "Revenue",
+      value: formatPrice(cards.totalRevenue),
+      sub: "Excluding cancelled orders",
+      icon: CircleDollarSign,
+      link: "/admin/analytics",
+    },
+    {
+      label: "Orders",
+      value: cards.totalOrders || 0,
+      sub: `${cards.pendingOrders || 0} pending orders`,
+      icon: ShoppingBag,
+      link: "/admin/orders",
+    },
+    {
+      label: "Customers",
+      value: cards.customersCount || 0,
+      sub: "Registered customers",
+      icon: Users,
+      link: "/admin/customers",
+    },
+    {
+      label: "Low stock",
+      value: cards.lowStockCount || 0,
+      sub: "Products need attention",
+      icon: AlertTriangle,
+      link: "/admin/products",
+    },
+  ];
+
+  const quickActions = [
+    {
+      label: "Manage Products",
+      description: "Add, edit, stock, prices and sale offers.",
+      path: "/admin/products",
+      icon: Package,
+    },
+    {
+      label: "Manage Orders",
+      description: "Confirm orders and update delivery status.",
+      path: "/admin/orders",
+      icon: ShoppingBag,
+    },
+    {
+      label: "Delivery Prices",
+      description: "Control wilaya delivery prices.",
+      path: "/admin/delivery-rates",
+      icon: Truck,
+    },
+    {
+      label: "Site Settings",
+      description: "Logo, hero, footer, socials and homepage content.",
+      path: "/admin/site-settings",
+      icon: Settings,
+    },
+  ];
+
   return (
-    <>
-      <main className="bg-stone-50 px-6 py-10">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-10">
+    <main className="min-h-[80vh] bg-stone-50 px-6 py-10">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
             <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
               Admin
             </p>
@@ -121,424 +163,390 @@ const AdminDashboard = () => {
             </h1>
 
             <p className="mt-3 text-stone-500">
-              Manage orders, delivery status, and customer requests.
+              Your store cockpit: orders, revenue, stock alerts and quick
+              actions.
             </p>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-4">
-            <div className="rounded-[2rem] bg-white p-6 shadow-sm">
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-stone-100">
-                <ShoppingBag size={22} />
-              </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={fetchDashboard}
+              className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-5 py-3 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+            >
+              <RefreshCcw size={17} />
+              Refresh
+            </button>
 
-              <p className="mt-5 text-sm text-stone-500">Total Orders</p>
-
-              <h2 className="mt-1 text-3xl font-bold text-stone-950">
-                {orders.length}
-              </h2>
-            </div>
-
-            <div className="rounded-[2rem] bg-white p-6 shadow-sm">
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600">
-                <Truck size={22} />
-              </div>
-
-              <p className="mt-5 text-sm text-stone-500">Pending</p>
-
-              <h2 className="mt-1 text-3xl font-bold text-stone-950">
-                {pendingOrders}
-              </h2>
-            </div>
-
-            <div className="rounded-[2rem] bg-white p-6 shadow-sm">
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-green-50 text-green-600">
-                <PackageCheck size={22} />
-              </div>
-
-              <p className="mt-5 text-sm text-stone-500">Delivered</p>
-
-              <h2 className="mt-1 text-3xl font-bold text-stone-950">
-                {deliveredOrders}
-              </h2>
-            </div>
-
-            <div className="rounded-[2rem] bg-white p-6 shadow-sm">
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
-                <XCircle size={22} />
-              </div>
-
-              <p className="mt-5 text-sm text-stone-500">Cancelled</p>
-
-              <h2 className="mt-1 text-3xl font-bold text-stone-950">
-                {cancelledOrders}
-              </h2>
-            </div>
-          </div>
-
-          <div className="mt-6 rounded-[2rem] bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-stone-100 pb-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-stone-950">
-                  Recent Orders
-                </h2>
-
-                <p className="mt-1 text-stone-500">
-                  Total revenue:{" "}
-                  <span className="whitespace-nowrap font-semibold text-stone-950">
-                    {totalRevenue} DA
-                  </span>
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={fetchOrders}
-                className="w-fit rounded-full border border-stone-300 px-5 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
-              >
-                Refresh
-              </button>
-            </div>
-
-            {orders.length === 0 ? (
-              <p className="py-10 text-center text-stone-500">No orders yet.</p>
-            ) : (
-              <div className="mt-6 overflow-x-auto">
-                <table className="w-full min-w-[1280px] border-collapse">
-                  <thead>
-                    <tr className="text-left text-sm text-stone-400">
-                      <th className="w-[170px] py-4 pr-5 font-medium">Order</th>
-                      <th className="w-[190px] py-4 pr-5 font-medium">
-                        Customer
-                      </th>
-                      <th className="w-[150px] py-4 pr-5 font-medium">
-                        Location
-                      </th>
-                      <th className="w-[310px] py-4 pr-5 font-medium">Items</th>
-                      <th className="w-[130px] py-4 pr-6 font-medium">Total</th>
-                      <th className="w-[120px] py-4 pr-5 font-medium">
-                        Payment
-                      </th>
-                      <th className="w-[170px] py-4 pr-5 font-medium">
-                        Status
-                      </th>
-                      <th className="w-[120px] py-4 text-right font-medium">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {orders.map((order) => (
-                      <tr
-                        key={order._id}
-                        className="border-t border-stone-100 text-sm"
-                      >
-                        <td className="py-5 pr-5">
-                          <p className="max-w-[160px] truncate font-semibold text-stone-950">
-                            {order._id}
-                          </p>
-
-                          <p className="mt-1 whitespace-nowrap text-xs text-stone-400">
-                            {new Date(order.createdAt).toLocaleString()}
-                          </p>
-                        </td>
-
-                        <td className="py-5 pr-5">
-                          <p className="font-semibold text-stone-950">
-                            {order.customerInfo?.fullName}
-                          </p>
-
-                          <p className="mt-1 whitespace-nowrap text-stone-500">
-                            {order.customerInfo?.phone}
-                          </p>
-                        </td>
-
-                        <td className="py-5 pr-5">
-                          <p className="font-medium text-stone-950">
-                            {order.customerInfo?.wilaya}
-                          </p>
-
-                          <p className="mt-1 text-stone-500">
-                            {order.customerInfo?.commune}
-                          </p>
-                        </td>
-
-                        <td className="py-5 pr-5">
-                          <div className="space-y-2">
-                            {order.orderItems?.map((item) => (
-                              <div
-                                key={`${order._id}-${item.product}`}
-                                className="flex items-center gap-3"
-                              >
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  className="h-12 w-12 shrink-0 rounded-xl object-cover"
-                                />
-
-                                <div className="min-w-0">
-                                  <p className="max-w-[210px] truncate font-medium text-stone-950">
-                                    {item.name}
-                                  </p>
-
-                                  <p className="text-xs text-stone-500">
-                                    Qty: {item.quantity}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-
-                        <td className="w-[130px] py-5 pr-6">
-                          <span className="block whitespace-nowrap text-base font-semibold text-stone-950">
-                            {order.totalPrice} DA
-                          </span>
-                        </td>
-
-                        <td className="py-5 pr-5">
-                          <p className="whitespace-nowrap font-medium capitalize text-stone-950">
-                            {order.paymentMethod}
-                          </p>
-
-                          <p className="mt-1 whitespace-nowrap text-xs capitalize text-stone-500">
-                            {order.paymentStatus}
-                          </p>
-                        </td>
-
-                        <td className="py-5 pr-5">
-                          <div className="flex flex-col gap-3">
-                            <span
-                              className={`w-fit rounded-full px-3 py-1 text-xs font-semibold capitalize ${getStatusClass(
-                                order.orderStatus,
-                              )}`}
-                            >
-                              {order.orderStatus}
-                            </span>
-
-                            <select
-                              value={order.orderStatus}
-                              disabled={updatingId === order._id}
-                              onChange={(e) =>
-                                updateStatus(order._id, e.target.value)
-                              }
-                              className="w-36 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm capitalize text-stone-700 outline-none transition focus:border-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {statusOptions.map((status) => (
-                                <option key={status} value={status}>
-                                  {status}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </td>
-
-                        <td className="py-5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOrder(order)}
-                            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-950 hover:bg-stone-950 hover:text-white"
-                          >
-                            <Eye size={15} />
-                            Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <Link
+              to="/admin/analytics"
+              className="inline-flex items-center gap-2 rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-700"
+            >
+              Full analytics
+              <ArrowRight size={17} />
+            </Link>
           </div>
         </div>
-      </main>
 
-      {selectedOrder && (
-        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={() => setSelectedOrder(null)}
-            className="absolute inset-0 h-full w-full"
-            aria-label="Close order details"
-          />
+        <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {mainCards.map((card) => {
+            const Icon = card.icon;
 
-          <aside className="absolute right-0 top-0 h-full w-full max-w-2xl overflow-y-auto bg-white shadow-2xl">
-            <div className="sticky top-0 z-10 flex items-start justify-between border-b border-stone-100 bg-white/95 p-6 backdrop-blur-md">
-              <div className="min-w-0">
-                <p className="text-xs uppercase tracking-[0.4em] text-stone-400">
-                  Order Details
-                </p>
+            return (
+              <Link
+                key={card.label}
+                to={card.link}
+                className="group rounded-[2rem] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="grid h-12 w-12 place-items-center rounded-full bg-stone-950 text-white">
+                    <Icon size={21} />
+                  </div>
 
-                <h2 className="mt-2 max-w-md truncate text-2xl font-bold text-stone-950">
-                  #{selectedOrder._id}
+                  <ArrowRight
+                    size={18}
+                    className="text-stone-300 transition group-hover:translate-x-1 group-hover:text-stone-950"
+                  />
+                </div>
+
+                <p className="mt-5 text-sm text-stone-500">{card.label}</p>
+
+                <h2 className="mt-2 text-3xl font-bold text-stone-950">
+                  {card.value}
+                </h2>
+
+                <p className="mt-2 text-sm text-stone-400">{card.sub}</p>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="mb-6 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <section className="rounded-[2rem] bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-stone-950">
+                  Revenue pulse
                 </h2>
 
                 <p className="mt-1 text-sm text-stone-500">
-                  {new Date(selectedOrder.createdAt).toLocaleString()}
+                  Last 6 months overview.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedOrder(null)}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200"
-                aria-label="Close drawer"
-              >
-                <X size={20} />
-              </button>
+              <BarChart3 size={24} className="text-stone-300" />
             </div>
 
-            <div className="space-y-5 p-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-3xl bg-stone-50 p-5">
-                  <div className="flex items-center gap-3 text-stone-950">
-                    <User size={18} />
-                    <h3 className="font-bold">Customer</h3>
-                  </div>
+            <div className="flex h-64 items-end gap-4 overflow-x-auto rounded-3xl bg-stone-50 p-5">
+              {analytics.monthlyRevenue?.map((month) => {
+                const height = Math.max(
+                  8,
+                  (Number(month.revenue || 0) / maxMonthlyRevenue) * 185,
+                );
 
-                  <p className="mt-4 text-lg font-bold text-stone-950">
-                    {selectedOrder.customerInfo?.fullName}
-                  </p>
-
-                  <p className="mt-2 flex items-center gap-2 text-stone-600">
-                    <Phone size={16} />
-                    {selectedOrder.customerInfo?.phone}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl bg-stone-50 p-5">
-                  <div className="flex items-center gap-3 text-stone-950">
-                    <MapPin size={18} />
-                    <h3 className="font-bold">Address</h3>
-                  </div>
-
-                  <p className="mt-4 text-lg font-bold text-stone-950">
-                    {selectedOrder.customerInfo?.wilaya},{" "}
-                    {selectedOrder.customerInfo?.commune}
-                  </p>
-
-                  <p className="mt-2 leading-7 text-stone-600">
-                    {selectedOrder.customerInfo?.address}
-                  </p>
-                </div>
-              </div>
-
-              {selectedOrder.customerInfo?.note && (
-                <div className="rounded-3xl bg-amber-50 p-5">
-                  <p className="text-sm font-semibold text-amber-700">
-                    Customer note
-                  </p>
-
-                  <p className="mt-2 text-stone-700">
-                    {selectedOrder.customerInfo.note}
-                  </p>
-                </div>
-              )}
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border border-stone-100 p-5">
-                  <p className="text-sm text-stone-500">Delivery</p>
-
-                  <p className="mt-2 font-bold capitalize text-stone-950">
-                    {selectedOrder.deliveryMethod}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-stone-100 p-5">
-                  <p className="text-sm text-stone-500">Payment</p>
-
-                  <p className="mt-2 font-bold capitalize text-stone-950">
-                    {selectedOrder.paymentMethod}
-                  </p>
-
-                  <p className="mt-1 text-sm capitalize text-stone-500">
-                    {selectedOrder.paymentStatus}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-stone-100 p-5">
-                  <p className="text-sm text-stone-500">Status</p>
-
-                  <select
-                    value={selectedOrder.orderStatus}
-                    disabled={updatingId === selectedOrder._id}
-                    onChange={(e) =>
-                      updateStatus(selectedOrder._id, e.target.value)
-                    }
-                    className="mt-3 w-full rounded-2xl border border-stone-200 px-3 py-3 text-sm outline-none focus:border-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
+                return (
+                  <div
+                    key={month.label}
+                    className="flex min-w-20 flex-1 flex-col items-center justify-end gap-3"
                   >
-                    {statusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                    <p className="text-xs font-semibold text-stone-500">
+                      {formatPrice(month.revenue)}
+                    </p>
 
-              <div className="rounded-[2rem] bg-stone-50 p-5">
-                <h3 className="text-lg font-bold text-stone-950">Products</h3>
-
-                <div className="mt-4 space-y-3">
-                  {selectedOrder.orderItems?.map((item) => (
                     <div
-                      key={`${selectedOrder._id}-${item.product}`}
-                      className="flex items-center gap-4 rounded-3xl bg-white p-3 shadow-sm"
-                    >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-16 w-16 shrink-0 rounded-2xl object-cover"
-                      />
+                      className="w-full rounded-t-2xl bg-stone-950 transition-all"
+                      style={{ height: `${height}px` }}
+                    />
 
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-bold text-stone-950">
-                          {item.name}
-                        </p>
+                    <div className="text-center">
+                      <p className="text-xs font-semibold text-stone-700">
+                        {month.label}
+                      </p>
 
-                        <p className="mt-1 text-sm text-stone-500">
-                          {item.quantity} × {item.price} DA
-                        </p>
-                      </div>
-
-                      <p className="whitespace-nowrap font-bold text-stone-950">
-                        {item.quantity * item.price} DA
+                      <p className="text-[11px] text-stone-400">
+                        {month.orders} orders
                       </p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-[2rem] bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-stone-950">
+                  Order status
+                </h2>
+
+                <p className="mt-1 text-sm text-stone-500">
+                  Current order distribution.
+                </p>
               </div>
 
-              <div className="rounded-[2rem] bg-stone-950 p-6 text-white">
-                <div className="flex justify-between gap-4 text-white/80">
-                  <span>Subtotal</span>
+              <Link
+                to="/admin/orders"
+                className="rounded-full border border-stone-200 px-4 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+              >
+                View
+              </Link>
+            </div>
 
-                  <span className="whitespace-nowrap">
-                    {selectedOrder.subtotalPrice} DA
-                  </span>
-                </div>
+            <div className="space-y-3">
+              {Object.entries(analytics.statusCounts || {}).map(
+                ([status, count]) => (
+                  <div
+                    key={status}
+                    className="flex items-center justify-between gap-4 rounded-2xl bg-stone-50 p-4"
+                  >
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${
+                        statusStyles[status] || "bg-stone-100 text-stone-600"
+                      }`}
+                    >
+                      {status}
+                    </span>
 
-                <div className="mt-3 flex justify-between gap-4 text-white/60">
-                  <span>Delivery</span>
+                    <span className="font-bold text-stone-950">{count}</span>
+                  </div>
+                ),
+              )}
+            </div>
+          </section>
+        </div>
 
-                  <span className="whitespace-nowrap">
-                    {selectedOrder.deliveryPrice} DA
-                  </span>
-                </div>
+        <div className="mb-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <section className="rounded-[2rem] bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-stone-950">
+                  Quick actions
+                </h2>
 
-                <div className="mt-5 flex justify-between gap-4 border-t border-white/10 pt-5 text-2xl font-bold">
-                  <span>Total</span>
-
-                  <span className="whitespace-nowrap">
-                    {selectedOrder.totalPrice} DA
-                  </span>
-                </div>
+                <p className="mt-1 text-sm text-stone-500">
+                  Jump into the important panels.
+                </p>
               </div>
             </div>
-          </aside>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+
+                return (
+                  <Link
+                    key={action.path}
+                    to={action.path}
+                    className="group rounded-3xl border border-stone-100 bg-stone-50 p-5 transition hover:border-stone-950 hover:bg-white"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-stone-950 shadow-sm">
+                        <Icon size={20} />
+                      </div>
+
+                      <ArrowRight
+                        size={17}
+                        className="text-stone-300 transition group-hover:translate-x-1 group-hover:text-stone-950"
+                      />
+                    </div>
+
+                    <h3 className="mt-5 font-bold text-stone-950">
+                      {action.label}
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-stone-500">
+                      {action.description}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-[2rem] bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-stone-950">
+                  Recent orders
+                </h2>
+
+                <p className="mt-1 text-sm text-stone-500">
+                  Latest customer activity.
+                </p>
+              </div>
+
+              <Link
+                to="/admin/orders"
+                className="rounded-full border border-stone-200 px-4 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+              >
+                All orders
+              </Link>
+            </div>
+
+            {analytics.recentOrders?.length > 0 ? (
+              <div className="space-y-3">
+                {analytics.recentOrders.slice(0, 5).map((order) => (
+                  <div
+                    key={order._id}
+                    className="flex flex-col gap-3 rounded-3xl bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-stone-950">
+                        #{order._id.slice(-6).toUpperCase()}
+                      </p>
+
+                      <p className="mt-1 truncate text-sm text-stone-500">
+                        {order.user?.name ||
+                          order.customerInfo?.fullName ||
+                          "Customer"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${
+                          statusStyles[order.orderStatus] ||
+                          "bg-stone-100 text-stone-600"
+                        }`}
+                      >
+                        {order.orderStatus}
+                      </span>
+
+                      <span className="whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-bold text-stone-950">
+                        {formatPrice(order.totalPrice)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-2xl bg-stone-50 p-5 text-stone-500">
+                No recent orders yet.
+              </p>
+            )}
+          </section>
         </div>
-      )}
-    </>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <section className="rounded-[2rem] bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-stone-950">
+                  Top products
+                </h2>
+
+                <p className="mt-1 text-sm text-stone-500">
+                  Best sellers by quantity.
+                </p>
+              </div>
+
+              <Link
+                to="/admin/analytics"
+                className="rounded-full border border-stone-200 px-4 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+              >
+                More
+              </Link>
+            </div>
+
+            {analytics.topProducts?.length > 0 ? (
+              <div className="space-y-4">
+                {analytics.topProducts.slice(0, 4).map((product) => (
+                  <div
+                    key={product.product}
+                    className="flex items-center gap-4 rounded-2xl bg-stone-50 p-4"
+                  >
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-stone-950">
+                        {product.name}
+                      </p>
+
+                      <p className="mt-1 text-sm text-stone-500">
+                        Sold: {product.quantity}
+                      </p>
+                    </div>
+
+                    <p className="whitespace-nowrap text-sm font-bold text-stone-950">
+                      {formatPrice(product.revenue)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-2xl bg-stone-50 p-5 text-stone-500">
+                No sales data yet.
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-[2rem] bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-stone-950">
+                  Stock alerts
+                </h2>
+
+                <p className="mt-1 text-sm text-stone-500">
+                  Products with 5 items or less.
+                </p>
+              </div>
+
+              <Link
+                to="/admin/products"
+                className="rounded-full border border-stone-200 px-4 py-2 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+              >
+                Products
+              </Link>
+            </div>
+
+            {analytics.lowStockProducts?.length > 0 ? (
+              <div className="space-y-4">
+                {analytics.lowStockProducts.slice(0, 4).map((product) => (
+                  <div
+                    key={product._id}
+                    className="flex items-center gap-4 rounded-2xl bg-stone-50 p-4"
+                  >
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                      <img
+                        src={product.images?.[0]}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-stone-950">
+                        {product.name}
+                      </p>
+
+                      <p className="mt-1 text-sm text-stone-500">
+                        {product.category} · {formatPrice(product.price)}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-600">
+                      {product.stock} left
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-2xl bg-green-50 p-5 text-green-600">
+                Stock looks good.
+              </p>
+            )}
+          </section>
+        </div>
+      </div>
+    </main>
   );
 };
 
