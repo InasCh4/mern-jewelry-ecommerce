@@ -4,12 +4,16 @@ import {
   ArrowLeft,
   CheckCircle2,
   CreditCard,
+  ExternalLink,
   FileText,
+  ImagePlus,
+  Mail,
   MapPin,
   MessageCircle,
   Package,
   Phone,
   Truck,
+  Upload,
   User,
   XCircle,
 } from "lucide-react";
@@ -67,6 +71,8 @@ const defaultPaymentSettings = {
 const defaultSiteSettings = {
   shopName: "ECLORA",
   contact: {
+    phone: "",
+    email: "",
     whatsapp: "",
   },
 };
@@ -128,6 +134,7 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [uploadingProof, setUploadingProof] = useState(false);
 
   const fetchOrder = async () => {
     try {
@@ -211,9 +218,75 @@ const OrderDetails = () => {
     ? paymentSettings[order.paymentMethod]
     : null;
 
-  const shopWhatsAppPhone = siteSettings.contact?.whatsapp || "";
-  const canSendBaridiMobReceipt =
+  const shopContact = siteSettings.contact || {};
+  const shopWhatsAppPhone = shopContact.whatsapp || "";
+  const normalizedWhatsAppPhone =
+    normalizeDzPhoneForWhatsApp(shopWhatsAppPhone);
+
+  const shouldShowBaridiMobReceiptHelp =
     order?.paymentMethod === "baridimob" && order?.paymentStatus === "pending";
+
+  const hasAlternativeContact = Boolean(shopContact.phone || shopContact.email);
+  const hasPaymentProof = Boolean(order?.paymentProof?.imageUrl);
+
+  const uploadImage = async (file) => {
+    if (!file) return "";
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose a valid image file.");
+      return "";
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const res = await api.post("/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return res.data.url;
+  };
+
+  const handlePaymentProofUpload = async (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file || !order) return;
+
+    const toastId = toast.loading("Uploading payment proof...");
+
+    try {
+      setUploadingProof(true);
+
+      const imageUrl = await uploadImage(file);
+
+      if (!imageUrl) {
+        toast.dismiss(toastId);
+        return;
+      }
+
+      const res = await api.patch(`/orders/${order._id}/payment-proof`, {
+        paymentProofUrl: imageUrl,
+      });
+
+      setOrder(res.data);
+
+      toast.success("Payment proof uploaded successfully.", {
+        id: toastId,
+      });
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Could not upload payment proof.",
+        {
+          id: toastId,
+        },
+      );
+    } finally {
+      setUploadingProof(false);
+      e.target.value = "";
+    }
+  };
 
   const openReceiptWhatsApp = () => {
     const phone = normalizeDzPhoneForWhatsApp(shopWhatsAppPhone);
@@ -648,25 +721,111 @@ const OrderDetails = () => {
                   </div>
                 )}
 
-              {canSendBaridiMobReceipt && (
+              {shouldShowBaridiMobReceiptHelp && (
                 <div className="mt-4 rounded-2xl bg-green-50 p-4">
                   <p className="text-sm font-semibold text-green-700">
                     BaridiMob receipt
                   </p>
 
                   <p className="mt-2 text-sm leading-6 text-stone-700">
-                    After making the transfer, send your receipt screenshot to
-                    the shop on WhatsApp.
+                    After making the transfer, upload your receipt in the
+                    website or send it through WhatsApp so the shop can verify
+                    your payment.
                   </p>
 
-                  <button
-                    type="button"
-                    onClick={openReceiptWhatsApp}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
-                  >
-                    <MessageCircle size={17} />
-                    Send receipt on WhatsApp
-                  </button>
+                  {hasPaymentProof ? (
+                    <div className="mt-4 rounded-2xl bg-white p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green-50 text-green-600">
+                          <ImagePlus size={18} />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-green-700">
+                            Payment proof uploaded
+                          </p>
+
+                          <p className="mt-1 text-sm text-stone-600">
+                            Your receipt has been sent to the shop for
+                            verification.
+                          </p>
+
+                          <a
+                            href={order.paymentProof.imageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-100"
+                          >
+                            <ExternalLink size={15} />
+                            View uploaded receipt
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-700">
+                      <Upload size={17} />
+                      {uploadingProof
+                        ? "Uploading receipt..."
+                        : "Upload receipt in website"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePaymentProofUpload}
+                        disabled={uploadingProof}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+
+                  {normalizedWhatsAppPhone ? (
+                    <button
+                      type="button"
+                      onClick={openReceiptWhatsApp}
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                    >
+                      <MessageCircle size={17} />
+                      Send receipt on WhatsApp
+                    </button>
+                  ) : (
+                    <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-700">
+                      WhatsApp is not configured yet by the shop.
+                    </p>
+                  )}
+
+                  {hasAlternativeContact && (
+                    <div className="mt-4 rounded-2xl bg-white p-4">
+                      <p className="text-sm font-semibold text-stone-950">
+                        Don’t use WhatsApp?
+                      </p>
+
+                      <p className="mt-1 text-sm text-stone-600">
+                        You can contact the shop using the details below.
+                      </p>
+
+                      <div className="mt-3 space-y-2 text-sm text-stone-700">
+                        {shopContact.phone && (
+                          <a
+                            href={`tel:${shopContact.phone}`}
+                            className="flex items-center gap-2 break-all rounded-xl bg-stone-50 px-3 py-2 transition hover:text-stone-950"
+                          >
+                            <Phone size={15} />
+                            {shopContact.phone}
+                          </a>
+                        )}
+
+                        {shopContact.email && (
+                          <a
+                            href={`mailto:${shopContact.email}`}
+                            className="flex items-center gap-2 break-all rounded-xl bg-stone-50 px-3 py-2 transition hover:text-stone-950"
+                          >
+                            <Mail size={15} />
+                            {shopContact.email}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

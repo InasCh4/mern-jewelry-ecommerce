@@ -4,6 +4,7 @@ const {
   getOrders,
   getMyOrders,
   getOrderById,
+  uploadPaymentProof,
   updateOrderStatus,
   cancelOrder,
 } = require("../controllers/orderController");
@@ -19,6 +20,8 @@ router.get("/my-orders", protect, getMyOrders);
 router.get("/", protect, admin, getOrders);
 
 router.get("/:id", protect, getOrderById);
+
+router.patch("/:id/payment-proof", protect, uploadPaymentProof);
 
 router.patch("/:id/cancel", protect, cancelOrder);
 

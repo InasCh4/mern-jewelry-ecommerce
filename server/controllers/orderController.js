@@ -1,9 +1,11 @@
 const mongoose = require("mongoose");
+const validator = require("validator");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const DeliveryRate = require("../models/DeliveryRate");
 const { ensureDeliveryRates } = require("./deliveryRateController");
 const { ensurePaymentSettings } = require("./paymentSettingController");
+const { stripHtml } = require("../middleware/securityMiddleware");
 
 const allowedPaymentMethods = ["cash", "baridimob", "card"];
 const allowedOrderStatuses = [
@@ -14,6 +16,27 @@ const allowedOrderStatuses = [
   "cancelled",
 ];
 const allowedPaymentStatuses = ["unpaid", "pending", "paid", "failed"];
+
+const cleanText = (value, maxLength = 200) => {
+  return stripHtml(value).slice(0, maxLength).trim();
+};
+
+const cleanUrl = (value, maxLength = 500) => {
+  const url = cleanText(value, maxLength);
+
+  if (!url) return "";
+
+  const isSafeUrl = validator.isURL(url, {
+    protocols: ["http", "https"],
+    require_protocol: true,
+  });
+
+  return isSafeUrl ? url : "";
+};
+
+const populateOrder = async (orderId) => {
+  return await Order.findById(orderId).populate("user", "name email role");
+};
 
 const getSafePaymentMethod = async (paymentMethod) => {
   const paymentSettings = await ensurePaymentSettings();
@@ -193,13 +216,13 @@ const createOrder = async (req, res) => {
       user: req.user._id,
 
       customerInfo: {
-        fullName: customerInfo.fullName.trim(),
-        phone: customerInfo.phone.trim(),
-        wilaya: customerInfo.wilaya,
+        fullName: cleanText(customerInfo.fullName, 100),
+        phone: cleanText(customerInfo.phone, 30),
+        wilaya: cleanText(customerInfo.wilaya, 80),
         wilayaCode: safeWilayaCode,
-        commune: customerInfo.commune,
-        address: customerInfo.address.trim(),
-        note: customerInfo.note?.trim() || "",
+        commune: cleanText(customerInfo.commune, 80),
+        address: cleanText(customerInfo.address, 180),
+        note: cleanText(customerInfo.note || "", 300),
       },
 
       orderItems: safeOrderItems,
@@ -267,10 +290,7 @@ const getOrderById = async (req, res) => {
       });
     }
 
-    const order = await Order.findById(req.params.id).populate(
-      "user",
-      "name email role",
-    );
+    const order = await populateOrder(req.params.id);
 
     if (!order) {
       return res.status(404).json({
@@ -288,6 +308,77 @@ const getOrderById = async (req, res) => {
     }
 
     res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// PATCH /api/orders/:id/payment-proof
+// Private owner only
+const uploadPaymentProof = async (req, res) => {
+  try {
+    const proofUrl = cleanUrl(req.body.paymentProofUrl || req.body.imageUrl);
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid order id.",
+      });
+    }
+
+    if (!proofUrl) {
+      return res.status(400).json({
+        message: "Valid payment proof image URL is required.",
+      });
+    }
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found.",
+      });
+    }
+
+    const isOwner = order.user?.toString() === req.user._id.toString();
+
+    if (!isOwner) {
+      return res.status(403).json({
+        message: "Only the order owner can upload payment proof.",
+      });
+    }
+
+    if (order.paymentMethod !== "baridimob") {
+      return res.status(400).json({
+        message: "Payment proof upload is only available for BaridiMob orders.",
+      });
+    }
+
+    if (order.orderStatus === "cancelled") {
+      return res.status(400).json({
+        message: "Cannot upload payment proof for a cancelled order.",
+      });
+    }
+
+    if (order.paymentStatus === "paid") {
+      return res.status(400).json({
+        message: "This payment has already been confirmed.",
+      });
+    }
+
+    order.paymentProof = {
+      imageUrl: proofUrl,
+      uploadedAt: new Date(),
+    };
+
+    order.paymentStatus = "pending";
+
+    await order.save();
+
+    const populatedOrder = await populateOrder(order._id);
+
+    res.status(200).json(populatedOrder);
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -337,10 +428,7 @@ const updateOrderStatus = async (req, res) => {
 
     await order.save();
 
-    const populatedOrder = await Order.findById(order._id).populate(
-      "user",
-      "name email role",
-    );
+    const populatedOrder = await populateOrder(order._id);
 
     res.status(200).json(populatedOrder);
   } catch (error) {
@@ -393,10 +481,7 @@ const cancelOrder = async (req, res) => {
       });
     }
 
-    const populatedOrder = await Order.findById(cancelledOrder._id).populate(
-      "user",
-      "name email role",
-    );
+    const populatedOrder = await populateOrder(cancelledOrder._id);
 
     res.status(200).json(populatedOrder);
   } catch (error) {
@@ -411,6 +496,7 @@ module.exports = {
   getOrders,
   getMyOrders,
   getOrderById,
+  uploadPaymentProof,
   updateOrderStatus,
   cancelOrder,
 };

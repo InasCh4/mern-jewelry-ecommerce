@@ -120,6 +120,19 @@ const orderSchema = new mongoose.Schema(
       default: "cash",
     },
 
+    paymentProof: {
+      imageUrl: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      uploadedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+
     deliveryMethod: {
       type: String,
       enum: ["home", "office"],

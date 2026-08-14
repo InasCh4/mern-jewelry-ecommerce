@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   CreditCard,
+  ExternalLink,
   Eye,
   FileText,
+  ImagePlus,
   MapPin,
   MessageCircle,
   Package,
@@ -240,7 +242,9 @@ const getWorkflowConfig = (order) => {
         paymentStatus: "paid",
         orderStatus: "confirmed",
       },
-      help: "Use this only after checking the BaridiMob receipt.",
+      help: order.paymentProof?.imageUrl
+        ? "A payment proof was uploaded. Check it before confirming payment."
+        : "No uploaded proof yet. Use this only if you verified the payment by WhatsApp, phone, or another channel.",
     };
   }
 
@@ -451,7 +455,9 @@ const AdminOrders = () => {
 
     const confirmMessage =
       order.paymentMethod === "baridimob" && order.paymentStatus !== "paid"
-        ? "Did you verify the BaridiMob receipt before confirming payment?"
+        ? order.paymentProof?.imageUrl
+          ? "Did you verify the uploaded BaridiMob receipt before confirming payment?"
+          : "No uploaded proof found. Did you verify the BaridiMob payment through another channel?"
         : "Confirm this order and open WhatsApp message?";
 
     const isConfirmed = window.confirm(confirmMessage);
@@ -503,6 +509,8 @@ const AdminOrders = () => {
         (order) => order.paymentStatus === "pending",
       ).length,
       paid: orders.filter((order) => order.paymentStatus === "paid").length,
+      proofUploaded: orders.filter((order) => order.paymentProof?.imageUrl)
+        .length,
     };
   }, [orders]);
 
@@ -582,7 +590,7 @@ const AdminOrders = () => {
           </p>
         )}
 
-        <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-6">
+        <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-7">
           <div className="rounded-[2rem] bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Total orders</p>
 
@@ -628,6 +636,14 @@ const AdminOrders = () => {
 
             <h2 className="mt-2 text-3xl font-bold text-green-600">
               {stats.paid}
+            </h2>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Proof uploaded</p>
+
+            <h2 className="mt-2 text-3xl font-bold text-green-600">
+              {stats.proofUploaded}
             </h2>
           </div>
         </div>
@@ -799,6 +815,18 @@ const AdminOrders = () => {
                             </option>
                           ))}
                         </select>
+
+                        {order.paymentProof?.imageUrl && (
+                          <a
+                            href={order.paymentProof.imageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex w-fit items-center gap-1 rounded-full bg-green-50 px-3 py-1 text-[11px] font-semibold text-green-700 transition hover:bg-green-100"
+                          >
+                            <ImagePlus size={12} />
+                            Proof uploaded
+                          </a>
+                        )}
                       </div>
                     </td>
 
@@ -1017,6 +1045,66 @@ const AdminOrders = () => {
                     </p>
                   </div>
                 )}
+
+              {selectedOrder.paymentMethod === "baridimob" && (
+                <div className="rounded-3xl border border-stone-100 p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-stone-950">Payment proof</p>
+
+                      <p className="mt-1 text-sm text-stone-500">
+                        Receipt uploaded by the customer.
+                      </p>
+                    </div>
+
+                    <div className="grid h-11 w-11 place-items-center rounded-full bg-stone-50 text-stone-600">
+                      <ImagePlus size={19} />
+                    </div>
+                  </div>
+
+                  {selectedOrder.paymentProof?.imageUrl ? (
+                    <div className="mt-4">
+                      <a
+                        href={selectedOrder.paymentProof.imageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block overflow-hidden rounded-2xl border border-stone-100 bg-stone-50"
+                      >
+                        <img
+                          src={selectedOrder.paymentProof.imageUrl}
+                          alt="Payment proof"
+                          className="max-h-80 w-full object-contain"
+                        />
+                      </a>
+
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs text-stone-500">
+                          Uploaded{" "}
+                          {selectedOrder.paymentProof.uploadedAt
+                            ? new Date(
+                                selectedOrder.paymentProof.uploadedAt,
+                              ).toLocaleString("en-GB")
+                            : ""}
+                        </p>
+
+                        <a
+                          href={selectedOrder.paymentProof.imageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-700"
+                        >
+                          <ExternalLink size={15} />
+                          Open proof
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm text-amber-700">
+                      No payment proof uploaded yet.
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="rounded-3xl bg-green-50 p-5">
                 <p className="font-bold text-green-700">Admin workflow</p>
