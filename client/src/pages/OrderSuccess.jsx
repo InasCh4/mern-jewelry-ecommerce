@@ -9,7 +9,6 @@ import {
   MessageCircle,
   PackageCheck,
   Phone,
-  Upload,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
@@ -114,7 +113,6 @@ const OrderSuccess = () => {
   );
   const [siteSettings, setSiteSettings] = useState(defaultSiteSettings);
   const [loading, setLoading] = useState(true);
-  const [uploadingProof, setUploadingProof] = useState(false);
 
   useEffect(() => {
     const fetchOrderAndPayment = async () => {
@@ -178,65 +176,6 @@ const OrderSuccess = () => {
 
   const hasAlternativeContact = Boolean(shopContact.phone || shopContact.email);
   const hasPaymentProof = Boolean(order?.paymentProof?.imageUrl);
-
-  const uploadImage = async (file) => {
-    if (!file) return "";
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please choose a valid image file.");
-      return "";
-    }
-
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const res = await api.post("/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    return res.data.url;
-  };
-
-  const handlePaymentProofUpload = async (e) => {
-    const file = e.target.files?.[0];
-
-    if (!file || !order) return;
-
-    const toastId = toast.loading("Uploading payment proof...");
-
-    try {
-      setUploadingProof(true);
-
-      const imageUrl = await uploadImage(file);
-
-      if (!imageUrl) {
-        toast.dismiss(toastId);
-        return;
-      }
-
-      const res = await api.patch(`/orders/${order._id}/payment-proof`, {
-        paymentProofUrl: imageUrl,
-      });
-
-      setOrder(res.data);
-
-      toast.success("Payment proof uploaded successfully.", {
-        id: toastId,
-      });
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Could not upload payment proof.",
-        {
-          id: toastId,
-        },
-      );
-    } finally {
-      setUploadingProof(false);
-      e.target.value = "";
-    }
-  };
 
   const openReceiptWhatsApp = () => {
     const phone = normalizeDzPhoneForWhatsApp(shopWhatsAppPhone);
@@ -518,9 +457,8 @@ const OrderSuccess = () => {
                   </p>
 
                   <p className="mt-2 text-sm leading-6 text-stone-600">
-                    After making the BaridiMob transfer, upload your receipt in
-                    the website or send it through WhatsApp so the shop can
-                    verify your payment.
+                    After making the BaridiMob transfer, send your receipt
+                    through WhatsApp so the shop can verify your payment.
                   </p>
 
                   {hasPaymentProof ? (
@@ -553,19 +491,10 @@ const OrderSuccess = () => {
                       </div>
                     </div>
                   ) : (
-                    <label className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-700">
-                      <Upload size={17} />
-                      {uploadingProof
-                        ? "Uploading receipt..."
-                        : "Upload receipt in website"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePaymentProofUpload}
-                        disabled={uploadingProof}
-                        className="hidden"
-                      />
-                    </label>
+                    <p className="mt-4 rounded-2xl bg-stone-50 p-3 text-sm leading-6 text-stone-600">
+                      Website receipt upload is temporarily unavailable. Please
+                      send your payment receipt through WhatsApp.
+                    </p>
                   )}
 
                   {normalizedWhatsAppPhone ? (

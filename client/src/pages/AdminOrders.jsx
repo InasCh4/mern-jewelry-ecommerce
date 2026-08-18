@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  CheckCircle2,
+  Clock3,
   CreditCard,
   ExternalLink,
   Eye,
   FileText,
+  History,
   ImagePlus,
   MapPin,
   MessageCircle,
@@ -16,6 +19,7 @@ import {
   Truck,
   User,
   X,
+  XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
@@ -51,6 +55,22 @@ const paymentMethodLabels = {
   cash: "Cash on delivery",
   baridimob: "BaridiMob",
   card: "Card payment",
+};
+
+const historyTypeLabels = {
+  order_created: "Order created",
+  payment_proof_uploaded: "Payment proof uploaded",
+  payment_status_updated: "Payment updated",
+  order_status_updated: "Order updated",
+  order_cancelled: "Order cancelled",
+};
+
+const historyTypeStyles = {
+  order_created: "bg-stone-950 text-white",
+  payment_proof_uploaded: "bg-green-50 text-green-700",
+  payment_status_updated: "bg-blue-50 text-blue-700",
+  order_status_updated: "bg-purple-50 text-purple-700",
+  order_cancelled: "bg-red-50 text-red-700",
 };
 
 const defaultSiteSettings = {
@@ -304,6 +324,37 @@ const getOrderSavings = (order) => {
   }, 0);
 };
 
+const getHistoryIcon = (type) => {
+  if (type === "payment_proof_uploaded") return ImagePlus;
+  if (type === "payment_status_updated") return CreditCard;
+  if (type === "order_status_updated") return Truck;
+  if (type === "order_cancelled") return XCircle;
+
+  return CheckCircle2;
+};
+
+const getTimelineEvents = (order) => {
+  if (order?.statusHistory?.length) {
+    return [...order.statusHistory].sort(
+      (a, b) => new Date(b.changedAt) - new Date(a.changedAt),
+    );
+  }
+
+  if (!order) return [];
+
+  return [
+    {
+      type: "order_created",
+      title: "Order created",
+      description: "The order was placed successfully.",
+      orderStatus: order.orderStatus || "pending",
+      paymentStatus: order.paymentStatus || "unpaid",
+      changedBy: "customer",
+      changedAt: order.createdAt,
+    },
+  ];
+};
+
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -549,6 +600,11 @@ const AdminOrders = () => {
     Number(selectedOrder?.subtotalPrice || 0) + selectedOrderSavings;
 
   const selectedWorkflow = getWorkflowConfig(selectedOrder);
+
+  const selectedOrderHistory = useMemo(
+    () => getTimelineEvents(selectedOrder),
+    [selectedOrder],
+  );
 
   if (loading) {
     return (
@@ -1105,6 +1161,115 @@ const AdminOrders = () => {
                   )}
                 </div>
               )}
+
+              <div className="rounded-3xl bg-white p-5 ring-1 ring-stone-100">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-full bg-stone-950 text-white">
+                    <History size={19} />
+                  </div>
+
+                  <div>
+                    <p className="font-bold text-stone-950">Order activity</p>
+
+                    <p className="mt-1 text-sm text-stone-500">
+                      Full timeline for this order.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  {selectedOrderHistory.map((event, index) => {
+                    const HistoryIcon = getHistoryIcon(event.type);
+
+                    return (
+                      <div
+                        key={event._id || `${event.type}-${index}`}
+                        className="relative flex gap-4"
+                      >
+                        {index !== selectedOrderHistory.length - 1 && (
+                          <span className="absolute left-5 top-11 h-[calc(100%-1.5rem)] w-px bg-stone-200" />
+                        )}
+
+                        <div
+                          className={`relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                            historyTypeStyles[event.type] ||
+                            "bg-stone-100 text-stone-600"
+                          }`}
+                        >
+                          <HistoryIcon size={18} />
+                        </div>
+
+                        <div className="min-w-0 flex-1 rounded-2xl bg-stone-50 p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="font-bold text-stone-950">
+                                {event.title ||
+                                  historyTypeLabels[event.type] ||
+                                  "Order updated"}
+                              </p>
+
+                              {event.description && (
+                                <p className="mt-1 text-sm leading-6 text-stone-600">
+                                  {event.description}
+                                </p>
+                              )}
+                            </div>
+
+                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-semibold capitalize text-stone-500">
+                              <Clock3 size={13} />
+                              {event.changedBy || "system"}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {event.orderStatus && (
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                                  statusStyles[event.orderStatus] ||
+                                  "bg-stone-100 text-stone-600"
+                                }`}
+                              >
+                                {event.orderStatus}
+                              </span>
+                            )}
+
+                            {event.paymentStatus && (
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                                  paymentStyles[event.paymentStatus] ||
+                                  "bg-stone-100 text-stone-600"
+                                }`}
+                              >
+                                Payment: {event.paymentStatus}
+                              </span>
+                            )}
+                          </div>
+
+                          {event.imageUrl && (
+                            <a
+                              href={event.imageUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-100"
+                            >
+                              <ExternalLink size={15} />
+                              View receipt
+                            </a>
+                          )}
+
+                          <p className="mt-3 text-xs text-stone-400">
+                            {event.changedAt
+                              ? new Date(event.changedAt).toLocaleString(
+                                  "en-GB",
+                                )
+                              : "Date not available"}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
               <div className="rounded-3xl bg-green-50 p-5">
                 <p className="font-bold text-green-700">Admin workflow</p>

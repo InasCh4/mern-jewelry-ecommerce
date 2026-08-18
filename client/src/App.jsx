@@ -16,6 +16,9 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import MyOrders from "./pages/MyOrders";
 import Account from "./pages/Account";
 import OrderDetails from "./pages/OrderDetails";
@@ -96,6 +99,16 @@ function AppContent() {
 
         <Route path="/cart" element={<Cart />} />
 
+        <Route path="/login" element={<Login />} />
+
+        <Route path="/register" element={<Register />} />
+
+        <Route path="/verify-email" element={<VerifyEmail />} />
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+
         <Route
           path="/checkout"
           element={
@@ -113,10 +126,6 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
-
-        <Route path="/login" element={<Login />} />
-
-        <Route path="/register" element={<Register />} />
 
         <Route
           path="/account"

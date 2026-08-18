@@ -1,5 +1,15 @@
 const mongoose = require("mongoose");
 
+const orderStatusValues = [
+  "pending",
+  "confirmed",
+  "shipped",
+  "delivered",
+  "cancelled",
+];
+
+const paymentStatusValues = ["unpaid", "pending", "paid", "failed"];
+
 const orderItemSchema = new mongoose.Schema(
   {
     product: {
@@ -40,6 +50,66 @@ const orderItemSchema = new mongoose.Schema(
     },
   },
   { _id: false },
+);
+
+const statusHistorySchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: [
+        "order_created",
+        "payment_proof_uploaded",
+        "payment_status_updated",
+        "order_status_updated",
+        "order_cancelled",
+      ],
+      required: true,
+    },
+
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120,
+    },
+
+    description: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 300,
+    },
+
+    orderStatus: {
+      type: String,
+      enum: orderStatusValues,
+      default: "pending",
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: paymentStatusValues,
+      default: "unpaid",
+    },
+
+    imageUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    changedBy: {
+      type: String,
+      enum: ["system", "customer", "admin"],
+      default: "system",
+    },
+
+    changedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true },
 );
 
 const orderSchema = new mongoose.Schema(
@@ -141,14 +211,19 @@ const orderSchema = new mongoose.Schema(
 
     orderStatus: {
       type: String,
-      enum: ["pending", "confirmed", "shipped", "delivered", "cancelled"],
+      enum: orderStatusValues,
       default: "pending",
     },
 
     paymentStatus: {
       type: String,
-      enum: ["unpaid", "pending", "paid", "failed"],
+      enum: paymentStatusValues,
       default: "unpaid",
+    },
+
+    statusHistory: {
+      type: [statusHistorySchema],
+      default: [],
     },
   },
   {

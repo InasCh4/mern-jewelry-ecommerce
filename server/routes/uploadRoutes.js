@@ -1,6 +1,9 @@
 const express = require("express");
 const multer = require("multer");
-const { uploadImage } = require("../controllers/uploadController");
+const {
+  uploadProductImage,
+  uploadPaymentProofImage,
+} = require("../controllers/uploadController");
 const { protect, admin } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -19,6 +22,15 @@ const upload = multer({
   },
 });
 
-router.post("/", protect, admin, upload.single("image"), uploadImage);
+// Admin only: product images
+router.post("/", protect, admin, upload.single("image"), uploadProductImage);
+
+// User logged in: BaridiMob receipt images
+router.post(
+  "/payment-proof",
+  protect,
+  upload.single("image"),
+  uploadPaymentProofImage,
+);
 
 module.exports = router;

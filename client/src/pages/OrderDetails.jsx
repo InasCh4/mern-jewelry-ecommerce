@@ -3,9 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle2,
+  Clock3,
   CreditCard,
   ExternalLink,
   FileText,
+  History,
   ImagePlus,
   Mail,
   MapPin,
@@ -13,7 +15,6 @@ import {
   Package,
   Phone,
   Truck,
-  Upload,
   User,
   XCircle,
 } from "lucide-react";
@@ -79,6 +80,22 @@ const defaultSiteSettings = {
 
 const timelineSteps = ["pending", "confirmed", "shipped", "delivered"];
 
+const historyTypeLabels = {
+  order_created: "Order created",
+  payment_proof_uploaded: "Payment proof uploaded",
+  payment_status_updated: "Payment updated",
+  order_status_updated: "Order updated",
+  order_cancelled: "Order cancelled",
+};
+
+const historyTypeStyles = {
+  order_created: "bg-stone-950 text-white",
+  payment_proof_uploaded: "bg-green-50 text-green-700",
+  payment_status_updated: "bg-blue-50 text-blue-700",
+  order_status_updated: "bg-purple-50 text-purple-700",
+  order_cancelled: "bg-red-50 text-red-700",
+};
+
 const formatPrice = (value) => `${Number(value || 0).toLocaleString()} DA`;
 
 const normalizeDzPhoneForWhatsApp = (phone) => {
@@ -123,6 +140,37 @@ Je joins le reçu de paiement ici.
 Merci.`;
 };
 
+const getHistoryIcon = (type) => {
+  if (type === "payment_proof_uploaded") return ImagePlus;
+  if (type === "payment_status_updated") return CreditCard;
+  if (type === "order_status_updated") return Truck;
+  if (type === "order_cancelled") return XCircle;
+
+  return CheckCircle2;
+};
+
+const getTimelineEvents = (order) => {
+  if (order?.statusHistory?.length) {
+    return [...order.statusHistory].sort(
+      (a, b) => new Date(b.changedAt) - new Date(a.changedAt),
+    );
+  }
+
+  if (!order) return [];
+
+  return [
+    {
+      type: "order_created",
+      title: "Order created",
+      description: "The order was placed successfully.",
+      orderStatus: order.orderStatus || "pending",
+      paymentStatus: order.paymentStatus || "unpaid",
+      changedBy: "customer",
+      changedAt: order.createdAt,
+    },
+  ];
+};
+
 const OrderDetails = () => {
   const { id } = useParams();
 
@@ -134,7 +182,6 @@ const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
-  const [uploadingProof, setUploadingProof] = useState(false);
 
   const fetchOrder = async () => {
     try {
@@ -229,64 +276,7 @@ const OrderDetails = () => {
   const hasAlternativeContact = Boolean(shopContact.phone || shopContact.email);
   const hasPaymentProof = Boolean(order?.paymentProof?.imageUrl);
 
-  const uploadImage = async (file) => {
-    if (!file) return "";
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please choose a valid image file.");
-      return "";
-    }
-
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const res = await api.post("/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    return res.data.url;
-  };
-
-  const handlePaymentProofUpload = async (e) => {
-    const file = e.target.files?.[0];
-
-    if (!file || !order) return;
-
-    const toastId = toast.loading("Uploading payment proof...");
-
-    try {
-      setUploadingProof(true);
-
-      const imageUrl = await uploadImage(file);
-
-      if (!imageUrl) {
-        toast.dismiss(toastId);
-        return;
-      }
-
-      const res = await api.patch(`/orders/${order._id}/payment-proof`, {
-        paymentProofUrl: imageUrl,
-      });
-
-      setOrder(res.data);
-
-      toast.success("Payment proof uploaded successfully.", {
-        id: toastId,
-      });
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Could not upload payment proof.",
-        {
-          id: toastId,
-        },
-      );
-    } finally {
-      setUploadingProof(false);
-      e.target.value = "";
-    }
-  };
+  const orderHistory = useMemo(() => getTimelineEvents(order), [order]);
 
   const openReceiptWhatsApp = () => {
     const phone = normalizeDzPhoneForWhatsApp(shopWhatsAppPhone);
@@ -463,6 +453,115 @@ const OrderDetails = () => {
                   })}
                 </div>
               )}
+            </div>
+
+            <div className="rounded-[2rem] bg-white p-6 shadow-sm md:p-8">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-full bg-stone-950 text-white">
+                  <History size={19} />
+                </div>
+
+                <div>
+                  <h2 className="text-2xl font-bold text-stone-950">
+                    Order activity
+                  </h2>
+
+                  <p className="mt-1 text-sm text-stone-500">
+                    A live history of this order.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {orderHistory.map((event, index) => {
+                  const HistoryIcon = getHistoryIcon(event.type);
+
+                  return (
+                    <div
+                      key={event._id || `${event.type}-${index}`}
+                      className="relative flex gap-4"
+                    >
+                      {index !== orderHistory.length - 1 && (
+                        <span className="absolute left-5 top-11 h-[calc(100%-1.5rem)] w-px bg-stone-200" />
+                      )}
+
+                      <div
+                        className={`relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                          historyTypeStyles[event.type] ||
+                          "bg-stone-100 text-stone-600"
+                        }`}
+                      >
+                        <HistoryIcon size={18} />
+                      </div>
+
+                      <div className="min-w-0 flex-1 rounded-2xl bg-stone-50 p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="font-bold text-stone-950">
+                              {event.title ||
+                                historyTypeLabels[event.type] ||
+                                "Order updated"}
+                            </p>
+
+                            {event.description && (
+                              <p className="mt-1 text-sm leading-6 text-stone-600">
+                                {event.description}
+                              </p>
+                            )}
+                          </div>
+
+                          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-semibold capitalize text-stone-500">
+                            <Clock3 size={13} />
+                            {event.changedBy || "system"}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {event.orderStatus && (
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                                statusStyles[event.orderStatus] ||
+                                "bg-stone-100 text-stone-600"
+                              }`}
+                            >
+                              {event.orderStatus}
+                            </span>
+                          )}
+
+                          {event.paymentStatus && (
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                                paymentStatusStyles[event.paymentStatus] ||
+                                "bg-stone-100 text-stone-600"
+                              }`}
+                            >
+                              Payment: {event.paymentStatus}
+                            </span>
+                          )}
+                        </div>
+
+                        {event.imageUrl && (
+                          <a
+                            href={event.imageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-100"
+                          >
+                            <ExternalLink size={15} />
+                            View receipt
+                          </a>
+                        )}
+
+                        <p className="mt-3 text-xs text-stone-400">
+                          {event.changedAt
+                            ? new Date(event.changedAt).toLocaleString("en-GB")
+                            : "Date not available"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="rounded-[2rem] bg-white p-6 shadow-sm md:p-8">
@@ -728,9 +827,8 @@ const OrderDetails = () => {
                   </p>
 
                   <p className="mt-2 text-sm leading-6 text-stone-700">
-                    After making the transfer, upload your receipt in the
-                    website or send it through WhatsApp so the shop can verify
-                    your payment.
+                    After making the transfer, send your receipt through
+                    WhatsApp so the shop can verify your payment.
                   </p>
 
                   {hasPaymentProof ? (
@@ -763,19 +861,10 @@ const OrderDetails = () => {
                       </div>
                     </div>
                   ) : (
-                    <label className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-700">
-                      <Upload size={17} />
-                      {uploadingProof
-                        ? "Uploading receipt..."
-                        : "Upload receipt in website"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePaymentProofUpload}
-                        disabled={uploadingProof}
-                        className="hidden"
-                      />
-                    </label>
+                    <p className="mt-4 rounded-2xl bg-stone-50 p-3 text-sm leading-6 text-stone-600">
+                      Website receipt upload is temporarily unavailable. Please
+                      send your payment receipt through WhatsApp.
+                    </p>
                   )}
 
                   {normalizedWhatsAppPhone ? (

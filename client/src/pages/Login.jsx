@@ -37,7 +37,6 @@ const Login = () => {
     }
 
     const protectedPath = location.state?.from?.pathname;
-
     const blockedRedirects = ["/login", "/register", "/account"];
 
     if (protectedPath && !blockedRedirects.includes(protectedPath)) {
@@ -52,7 +51,10 @@ const Login = () => {
 
     if (loading) return;
 
-    if (!form.email.trim() || !form.password.trim()) {
+    const email = form.email.trim().toLowerCase();
+    const password = form.password;
+
+    if (!email || !password) {
       toast.error("Please enter your email and password.");
       return;
     }
@@ -61,27 +63,36 @@ const Login = () => {
 
     try {
       const loggedUser = await login({
-        email: form.email.trim().toLowerCase(),
-        password: form.password.trim(),
+        email,
+        password,
       });
 
-      await sleep(800);
+      await sleep(700);
 
       toast.success(`Welcome back, ${loggedUser.name}.`, {
         id: toastId,
       });
 
-      await sleep(400);
+      await sleep(300);
 
       navigate(getRedirectPath(loggedUser), {
         replace: true,
       });
     } catch (error) {
-      const message = error.message || "Login failed.";
+      const needsEmailVerification =
+        error.data?.needsEmailVerification || false;
 
-      toast.error(message, {
+      toast.error(error.message || "Login failed.", {
         id: toastId,
       });
+
+      if (needsEmailVerification) {
+        navigate("/verify-email", {
+          state: {
+            email: error.data?.email || email,
+          },
+        });
+      }
     }
   };
 
@@ -124,9 +135,18 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-stone-700">
-              Password
-            </label>
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-sm font-medium text-stone-700">
+                Password
+              </label>
+
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-stone-500 underline transition hover:text-stone-950"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             <div className="mt-2 flex items-center rounded-2xl border border-stone-200 px-4 focus-within:border-stone-950">
               <input
@@ -142,7 +162,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="text-stone-400 hover:text-stone-950"
+                className="text-stone-400 transition hover:text-stone-950"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>

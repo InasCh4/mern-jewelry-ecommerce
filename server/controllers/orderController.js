@@ -38,6 +38,53 @@ const populateOrder = async (orderId) => {
   return await Order.findById(orderId).populate("user", "name email role");
 };
 
+const addHistoryEvent = (
+  order,
+  {
+    type,
+    title,
+    description = "",
+    orderStatus = order.orderStatus,
+    paymentStatus = order.paymentStatus,
+    imageUrl = "",
+    changedBy = "system",
+  },
+) => {
+  order.statusHistory.push({
+    type,
+    title: cleanText(title, 120),
+    description: cleanText(description, 300),
+    orderStatus,
+    paymentStatus,
+    imageUrl,
+    changedBy,
+    changedAt: new Date(),
+  });
+};
+
+const getOrderStatusTitle = (status) => {
+  const titles = {
+    pending: "Order pending",
+    confirmed: "Order confirmed",
+    shipped: "Order shipped",
+    delivered: "Order delivered",
+    cancelled: "Order cancelled",
+  };
+
+  return titles[status] || "Order updated";
+};
+
+const getPaymentStatusTitle = (status) => {
+  const titles = {
+    unpaid: "Payment unpaid",
+    pending: "Payment pending verification",
+    paid: "Payment confirmed",
+    failed: "Payment failed",
+  };
+
+  return titles[status] || "Payment updated";
+};
+
 const getSafePaymentMethod = async (paymentMethod) => {
   const paymentSettings = await ensurePaymentSettings();
 
@@ -212,7 +259,7 @@ const createOrder = async (req, res) => {
 
     const paymentStatus = safePaymentMethod === "cash" ? "unpaid" : "pending";
 
-    const order = await Order.create({
+    const order = new Order({
       user: req.user._id,
 
       customerInfo: {
@@ -232,7 +279,19 @@ const createOrder = async (req, res) => {
       paymentMethod: safePaymentMethod,
       paymentStatus,
       deliveryMethod: safeDeliveryMethod,
+      orderStatus: "pending",
     });
+
+    addHistoryEvent(order, {
+      type: "order_created",
+      title: "Order created",
+      description: "The order was placed successfully.",
+      orderStatus: "pending",
+      paymentStatus,
+      changedBy: "customer",
+    });
+
+    const savedOrder = await order.save();
 
     for (const item of safeOrderItems) {
       await Product.findByIdAndUpdate(item.product, {
@@ -240,7 +299,7 @@ const createOrder = async (req, res) => {
       });
     }
 
-    res.status(201).json(order);
+    res.status(201).json(savedOrder);
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -374,6 +433,16 @@ const uploadPaymentProof = async (req, res) => {
 
     order.paymentStatus = "pending";
 
+    addHistoryEvent(order, {
+      type: "payment_proof_uploaded",
+      title: "Payment proof uploaded",
+      description: "The customer uploaded a BaridiMob receipt.",
+      orderStatus: order.orderStatus,
+      paymentStatus: "pending",
+      imageUrl: proofUrl,
+      changedBy: "customer",
+    });
+
     await order.save();
 
     const populatedOrder = await populateOrder(order._id);
@@ -406,6 +475,9 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
+    const previousOrderStatus = order.orderStatus;
+    const previousPaymentStatus = order.paymentStatus;
+
     if (orderStatus) {
       if (!allowedOrderStatuses.includes(orderStatus)) {
         return res.status(400).json({
@@ -424,6 +496,28 @@ const updateOrderStatus = async (req, res) => {
       }
 
       order.paymentStatus = paymentStatus;
+    }
+
+    if (paymentStatus && paymentStatus !== previousPaymentStatus) {
+      addHistoryEvent(order, {
+        type: "payment_status_updated",
+        title: getPaymentStatusTitle(paymentStatus),
+        description: `Payment status changed from ${previousPaymentStatus} to ${paymentStatus}.`,
+        orderStatus: order.orderStatus,
+        paymentStatus,
+        changedBy: "admin",
+      });
+    }
+
+    if (orderStatus && orderStatus !== previousOrderStatus) {
+      addHistoryEvent(order, {
+        type: "order_status_updated",
+        title: getOrderStatusTitle(orderStatus),
+        description: `Order status changed from ${previousOrderStatus} to ${orderStatus}.`,
+        orderStatus,
+        paymentStatus: order.paymentStatus,
+        changedBy: "admin",
+      });
     }
 
     await order.save();
@@ -472,6 +566,17 @@ const cancelOrder = async (req, res) => {
     }
 
     order.orderStatus = "cancelled";
+
+    addHistoryEvent(order, {
+      type: "order_cancelled",
+      title: "Order cancelled",
+      description: isAdmin
+        ? "The order was cancelled by an admin."
+        : "The order was cancelled by the customer.",
+      orderStatus: "cancelled",
+      paymentStatus: order.paymentStatus,
+      changedBy: isAdmin ? "admin" : "customer",
+    });
 
     const cancelledOrder = await order.save();
 

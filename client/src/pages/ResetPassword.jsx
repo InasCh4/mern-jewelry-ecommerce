@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Eye, EyeOff, KeyRound } from "lucide-react";
 import toast from "react-hot-toast";
 import useAuthStore from "../store/authStore";
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const validatePassword = (password) => {
   if (password.length < 8) {
@@ -26,16 +24,16 @@ const validatePassword = (password) => {
   return "";
 };
 
-const Register = () => {
+const ResetPassword = () => {
+  const { token } = useParams();
   const navigate = useNavigate();
-  const { register, loading, error } = useAuthStore();
+  const { resetPassword, loading, error } = useAuthStore();
 
   const [showPassword, setShowPassword] = useState(false);
 
   const [form, setForm] = useState({
-    name: "",
-    email: "",
     password: "",
+    confirmPassword: "",
   });
 
   const handleChange = (e) => {
@@ -52,62 +50,40 @@ const Register = () => {
 
     if (loading) return;
 
-    const name = form.name.trim();
-    const email = form.email.trim().toLowerCase();
-    const password = form.password;
-
-    if (!name || !email || !password) {
-      toast.error("Please fill all fields.");
+    if (!token) {
+      toast.error("Reset token is missing.");
       return;
     }
 
-    if (name.length < 2) {
-      toast.error("Name must be at least 2 characters.");
-      return;
-    }
-
-    const passwordError = validatePassword(password);
+    const passwordError = validatePassword(form.password);
 
     if (passwordError) {
       toast.error(passwordError);
       return;
     }
 
-    const toastId = toast.loading("Creating your account...");
+    if (form.password !== form.confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+
+    const toastId = toast.loading("Resetting password...");
 
     try {
-      const data = await register({
-        name,
-        email,
-        password,
+      const user = await resetPassword({
+        token,
+        password: form.password,
       });
 
-      await sleep(700);
-
-      if (data?.needsEmailVerification) {
-        toast.success("Account created. Check your verification code.", {
-          id: toastId,
-        });
-
-        navigate("/verify-email", {
-          replace: true,
-          state: {
-            email: data.email || email,
-          },
-        });
-
-        return;
-      }
-
-      toast.success(`Welcome to ECLORA, ${data.name}.`, {
+      toast.success(`Password reset successfully, ${user.name}.`, {
         id: toastId,
       });
 
-      navigate("/", {
+      navigate(user.role === "admin" ? "/admin" : "/", {
         replace: true,
       });
     } catch (error) {
-      toast.error(error.message || "Register failed.", {
+      toast.error(error.message || "Password reset failed.", {
         id: toastId,
       });
     }
@@ -117,16 +93,20 @@ const Register = () => {
     <main className="min-h-[80vh] bg-stone-50 px-6 py-16">
       <div className="mx-auto max-w-md rounded-[2rem] bg-white p-8 shadow-sm">
         <div className="text-center">
-          <p className="text-sm uppercase tracking-[0.35em] text-stone-400">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-stone-950 text-white">
+            <KeyRound size={28} />
+          </div>
+
+          <p className="mt-5 text-sm uppercase tracking-[0.35em] text-stone-400">
             ECLORA
           </p>
 
           <h1 className="mt-3 text-3xl font-bold text-stone-950">
-            Create account
+            Reset password
           </h1>
 
           <p className="mt-3 text-stone-500">
-            Join ECLORA and keep your orders in one place.
+            Choose a new secure password for your account.
           </p>
         </div>
 
@@ -139,36 +119,7 @@ const Register = () => {
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <div>
             <label className="text-sm font-medium text-stone-700">
-              Full name
-            </label>
-
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              autoComplete="name"
-              className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-950"
-              placeholder="Inas Chabla"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-stone-700">Email</label>
-
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              autoComplete="email"
-              className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-950"
-              placeholder="inas@email.com"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-stone-700">
-              Password
+              New password
             </label>
 
             <div className="mt-2 flex items-center rounded-2xl border border-stone-200 px-4 focus-within:border-stone-950">
@@ -179,7 +130,7 @@ const Register = () => {
                 onChange={handleChange}
                 autoComplete="new-password"
                 className="w-full py-3 outline-none"
-                placeholder="8 chars, uppercase, lowercase, number"
+                placeholder="New password"
               />
 
               <button
@@ -190,10 +141,22 @@ const Register = () => {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+          </div>
 
-            <p className="mt-2 text-xs leading-5 text-stone-400">
-              Use at least 8 characters with uppercase, lowercase and number.
-            </p>
+          <div>
+            <label className="text-sm font-medium text-stone-700">
+              Confirm password
+            </label>
+
+            <input
+              type={showPassword ? "text" : "password"}
+              name="confirmPassword"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              autoComplete="new-password"
+              className="mt-2 w-full rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-950"
+              placeholder="Confirm new password"
+            />
           </div>
 
           <button
@@ -201,15 +164,15 @@ const Register = () => {
             disabled={loading}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-stone-950 px-6 py-3 text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <UserPlus size={18} />
-            {loading ? "Creating..." : "Create account"}
+            <KeyRound size={18} />
+            {loading ? "Resetting..." : "Reset password"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-stone-500">
-          Already have an account?{" "}
+          Back to{" "}
           <Link to="/login" className="font-medium text-stone-950 underline">
-            Login
+            login
           </Link>
         </p>
       </div>
@@ -217,4 +180,4 @@ const Register = () => {
   );
 };
 
-export default Register;
+export default ResetPassword;
