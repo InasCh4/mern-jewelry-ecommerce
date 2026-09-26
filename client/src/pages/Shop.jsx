@@ -1,70 +1,115 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../api/axios";
 import ProductCard from "../components/ProductCard";
 
 const Shop = () => {
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [saleFilter, setSaleFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("latest");
-
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-
-      const res = await api.get("/products");
-      setProducts(res.data);
-    } catch (error) {
-      console.log("Error fetching products:", error);
-      toast.error("Could not load products.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [category, setCategory] = useState("all");
+  const [filterType, setFilterType] = useState(
+    searchParams.get("sale") === "1" ? "sale" : "all",
+  );
+  const [sortType, setSortType] = useState("latest");
 
   useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+
+        const res = await api.get("/products");
+        setProducts(Array.isArray(res.data) ? res.data : []);
+      } catch (error) {
+        console.log("Error fetching products:", error);
+        toast.error("Could not load products.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchProducts();
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const search = params.get("search") || "";
-    const sale = params.get("sale") || "";
+    const querySearch = searchParams.get("search") || "";
+    const querySale = searchParams.get("sale") === "1";
 
-    setSearchQuery(search);
-    setSaleFilter(sale === "1" ? "sale" : "all");
-
-    if (location.hash === "#products") {
-      setTimeout(() => {
-        const productsSection = document.getElementById("products");
-
-        if (productsSection) {
-          productsSection.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        }
-      }, 100);
-    }
-  }, [location.search, location.hash]);
+    setSearch(querySearch);
+    setFilterType(querySale ? "sale" : "all");
+  }, [searchParams]);
 
   const categories = useMemo(() => {
-    const uniqueCategories = products
+    const cleanCategories = products
       .map((product) => product.category)
       .filter(Boolean);
 
-    return ["all", ...new Set(uniqueCategories)];
+    return ["all", ...new Set(cleanCategories)];
   }, [products]);
 
-  const saleProductsCount = useMemo(() => {
+  const filteredProducts = useMemo(() => {
+    let result = [...products];
+
+    const cleanSearch = search.trim().toLowerCase();
+
+    if (cleanSearch) {
+      result = result.filter((product) => {
+        return (
+          product.name?.toLowerCase().includes(cleanSearch) ||
+          product.description?.toLowerCase().includes(cleanSearch) ||
+          product.category?.toLowerCase().includes(cleanSearch) ||
+          product.material?.toLowerCase().includes(cleanSearch)
+        );
+      });
+    }
+
+    if (category !== "all") {
+      result = result.filter((product) => product.category === category);
+    }
+
+    if (filterType === "sale") {
+      result = result.filter((product) => {
+        const price = Number(product.price || 0);
+        const oldPrice = Number(product.oldPrice || 0);
+        const discountPercent = Number(product.discountPercent || 0);
+
+        return oldPrice > price && discountPercent > 0;
+      });
+    }
+
+    if (filterType === "available") {
+      result = result.filter((product) => Number(product.stock || 0) > 0);
+    }
+
+    if (filterType === "out") {
+      result = result.filter((product) => Number(product.stock || 0) <= 0);
+    }
+
+    result.sort((a, b) => {
+      if (sortType === "price-low") {
+        return Number(a.price || 0) - Number(b.price || 0);
+      }
+
+      if (sortType === "price-high") {
+        return Number(b.price || 0) - Number(a.price || 0);
+      }
+
+      if (sortType === "rating") {
+        return Number(b.rating || 0) - Number(a.rating || 0);
+      }
+
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+
+    return result;
+  }, [products, search, category, filterType, sortType]);
+
+  const saleCount = useMemo(() => {
     return products.filter((product) => {
       const price = Number(product.price || 0);
       const oldPrice = Number(product.oldPrice || 0);
@@ -74,185 +119,169 @@ const Shop = () => {
     }).length;
   }, [products]);
 
-  const filteredProducts = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-
-    let result = products.filter((product) => {
-      const price = Number(product.price || 0);
-      const oldPrice = Number(product.oldPrice || 0);
-      const discountPercent = Number(product.discountPercent || 0);
-
-      const hasDiscount = oldPrice > price && discountPercent > 0;
-
-      const matchesSearch =
-        !query ||
-        product.name?.toLowerCase().includes(query) ||
-        product.description?.toLowerCase().includes(query) ||
-        product.category?.toLowerCase().includes(query) ||
-        product.material?.toLowerCase().includes(query);
-
-      const matchesCategory =
-        categoryFilter === "all" || product.category === categoryFilter;
-
-      const matchesSale = saleFilter === "all" || hasDiscount;
-
-      return matchesSearch && matchesCategory && matchesSale;
-    });
-
-    if (sortBy === "price-low") {
-      result = [...result].sort((a, b) => a.price - b.price);
-    }
-
-    if (sortBy === "price-high") {
-      result = [...result].sort((a, b) => b.price - a.price);
-    }
-
-    if (sortBy === "featured") {
-      result = [...result].sort(
-        (a, b) => Number(b.isFeatured) - Number(a.isFeatured),
-      );
-    }
-
-    if (sortBy === "discount-high") {
-      result = [...result].sort(
-        (a, b) =>
-          Number(b.discountPercent || 0) - Number(a.discountPercent || 0),
-      );
-    }
-
-    return result;
-  }, [products, searchQuery, categoryFilter, saleFilter, sortBy]);
-
   const resetFilters = () => {
-    setSearchQuery("");
-    setCategoryFilter("all");
-    setSaleFilter("all");
-    setSortBy("latest");
+    setSearch("");
+    setCategory("all");
+    setFilterType("all");
+    setSortType("latest");
+    setSearchParams({});
   };
 
-  if (loading) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-stone-50">
-        <p className="text-stone-500">Loading jewels...</p>
-      </div>
-    );
-  }
-
   return (
-    <section id="products" className="scroll-mt-24 bg-stone-50 px-6 py-16">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-10 text-center">
-          <p className="text-sm uppercase tracking-[0.4em] text-stone-400">
-            Jewelry Collection
+    <section
+      id="products"
+      className="relative overflow-hidden bg-[#050505] px-5 py-24 text-white sm:px-8 lg:px-10"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(255,255,255,0.08),transparent_26%),radial-gradient(circle_at_88%_18%,rgba(199,173,134,0.11),transparent_28%)]" />
+
+      <div className="relative mx-auto max-w-[1500px]">
+        <div className="mx-auto max-w-4xl text-center">
+          <p className="mx-auto flex w-fit items-center gap-3 text-xs uppercase tracking-[0.38em] text-[#c7ad86]">
+            <Sparkles size={15} />
+            ECLORA selection
           </p>
 
-          <h1 className="mt-3 text-4xl font-bold text-stone-900">
+          <h2 className="mt-5 font-serif text-[clamp(3rem,6vw,6.8rem)] leading-[0.88] tracking-[-0.075em] text-white">
             Our Products
-          </h1>
+          </h2>
 
-          <p className="mt-3 text-stone-500">
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-white/55 md:text-lg">
             Elegant pieces selected for a soft luxury look.
           </p>
         </div>
 
-        <div className="mb-8 rounded-[2rem] bg-white p-5 shadow-sm">
-          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
-              />
+        <div className="mt-14 rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] backdrop-blur-xl md:p-6">
+          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.85fr_0.85fr_0.85fr_auto]">
+            <label className="flex items-center gap-3 rounded-full border border-white/10 bg-black/30 px-5 py-3.5 text-white/70 transition focus-within:border-[#c7ad86]/60">
+              <Search size={19} className="shrink-0 text-white/38" />
 
               <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-2xl border border-stone-200 px-11 py-3 outline-none focus:border-stone-900"
-                placeholder="Search ring, necklace, gold..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search ring, necklace, bracelet..."
+                className="w-full bg-transparent text-sm outline-none placeholder:text-white/35"
               />
-            </div>
+            </label>
 
             <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="rounded-2xl border border-stone-200 px-4 py-3 capitalize outline-none focus:border-stone-900"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="rounded-full border border-white/10 bg-black/30 px-5 py-3.5 text-sm text-white/75 outline-none transition hover:border-white/20"
             >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category === "all" ? "All categories" : category}
+              {categories.map((item) => (
+                <option key={item} value={item} className="bg-black text-white">
+                  {item === "all" ? "All Categories" : item}
                 </option>
               ))}
             </select>
 
             <select
-              value={saleFilter}
-              onChange={(e) => setSaleFilter(e.target.value)}
-              className="rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="rounded-full border border-white/10 bg-black/30 px-5 py-3.5 text-sm text-white/75 outline-none transition hover:border-white/20"
             >
-              <option value="all">All products</option>
-              <option value="sale">On sale ({saleProductsCount})</option>
+              <option value="all" className="bg-black text-white">
+                All products
+              </option>
+              <option value="sale" className="bg-black text-white">
+                Sale only
+              </option>
+              <option value="available" className="bg-black text-white">
+                Available
+              </option>
+              <option value="out" className="bg-black text-white">
+                Out of stock
+              </option>
             </select>
 
             <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="rounded-2xl border border-stone-200 px-4 py-3 outline-none focus:border-stone-900"
+              value={sortType}
+              onChange={(e) => setSortType(e.target.value)}
+              className="rounded-full border border-white/10 bg-black/30 px-5 py-3.5 text-sm text-white/75 outline-none transition hover:border-white/20"
             >
-              <option value="latest">Latest</option>
-              <option value="featured">Featured first</option>
-              <option value="discount-high">Best discount</option>
-              <option value="price-low">Price: low to high</option>
-              <option value="price-high">Price: high to low</option>
+              <option value="latest" className="bg-black text-white">
+                Latest
+              </option>
+              <option value="price-low" className="bg-black text-white">
+                Price low to high
+              </option>
+              <option value="price-high" className="bg-black text-white">
+                Price high to low
+              </option>
+              <option value="rating" className="bg-black text-white">
+                Top rated
+              </option>
             </select>
 
             <button
               type="button"
               onClick={resetFilters}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-stone-300 px-5 py-3 text-sm text-stone-600 transition hover:border-stone-950 hover:text-stone-950"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white px-5 py-3.5 text-sm font-bold text-black transition hover:scale-105"
             >
               <SlidersHorizontal size={17} />
               Reset
             </button>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-stone-500">
+          <div className="mt-6 flex flex-col gap-4 text-sm text-white/50 sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Showing {filteredProducts.length} of {products.length} products.
+              Showing{" "}
+              <span className="font-semibold text-white">
+                {filteredProducts.length}
+              </span>{" "}
+              of {products.length} products.
             </p>
 
-            {saleProductsCount > 0 && (
-              <p className="rounded-full bg-red-50 px-3 py-1 font-semibold text-red-600">
-                {saleProductsCount} on sale
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-white/55 transition hover:border-white/25 hover:text-white"
+                >
+                  Clear search
+                  <X size={14} />
+                </button>
+              )}
+
+              {saleCount > 0 && (
+                <span className="rounded-full bg-red-500/10 px-4 py-2 text-xs font-bold text-red-300">
+                  {saleCount} on sale
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        {filteredProducts.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {loading ? (
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="h-[460px] animate-pulse rounded-[2rem] bg-white/[0.05]"
+              />
+            ))}
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product) => (
               <ProductCard key={product._id} product={product} />
             ))}
           </div>
         ) : (
-          <div className="rounded-[2rem] bg-white p-12 text-center shadow-sm">
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-stone-100">
-              <Search size={24} className="text-stone-400" />
-            </div>
+          <div className="mt-14 rounded-[2rem] border border-white/10 bg-white/[0.045] p-10 text-center">
+            <h3 className="font-serif text-4xl text-white">No pieces found.</h3>
 
-            <h2 className="mt-5 text-2xl font-bold text-stone-950">
-              No products found
-            </h2>
-
-            <p className="mt-2 text-stone-500">
-              Try another keyword or clear the filters.
+            <p className="mx-auto mt-4 max-w-md text-white/50">
+              Try another search, category, or reset the filters.
             </p>
 
             <button
               type="button"
               onClick={resetFilters}
-              className="mt-6 rounded-full bg-stone-950 px-6 py-3 text-white transition hover:bg-stone-700"
+              className="mt-7 rounded-full bg-white px-7 py-3 text-sm font-bold text-black transition hover:scale-105"
             >
-              Clear filters
+              Reset filters
             </button>
           </div>
         )}

@@ -253,7 +253,7 @@ const Navbar = () => {
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "auto";
+      document.body.style.overflow = "";
     };
   }, [searchOpen, mobileMenuOpen]);
 
@@ -261,80 +261,65 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full overflow-x-clip border-b border-stone-100 bg-white/90 backdrop-blur-xl">
-        <nav className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 px-3 py-3 sm:px-5">
+        <nav className="pointer-events-auto mx-auto flex max-w-[1500px] items-center justify-between gap-3 rounded-full border border-white/15 bg-white/[0.07] px-3 py-2 text-white shadow-[0_18px_55px_rgba(0,0,0,0.22)] backdrop-blur-2xl">
           <Link
             to="/"
-            className="flex min-w-0 shrink items-center gap-3 text-stone-900"
+            className="group flex min-w-0 shrink-0 items-center gap-2.5"
           >
             {brandReady ? (
               settings.logoUrl ? (
                 <img
                   src={settings.logoUrl}
                   alt={brandName}
-                  className="h-11 w-11 shrink-0 rounded-full border border-stone-200 object-cover shadow-sm"
+                  className="h-8 w-8 shrink-0 rounded-full border border-white/20 bg-white/10 object-cover"
                 />
               ) : (
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-stone-950 text-sm font-black text-white">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/15 font-serif text-base text-white backdrop-blur-xl">
                   {brandName.charAt(0)}
                 </span>
               )
             ) : (
-              <span className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-stone-100" />
+              <span className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-white/10" />
             )}
 
             {brandReady ? (
-              <span className="max-w-[115px] truncate text-2xl font-black tracking-[0.04em] text-stone-950 sm:max-w-[170px] xl:max-w-[220px]">
+              <span className="max-w-[105px] truncate font-serif text-xl text-white sm:max-w-[160px]">
                 {brandName}
               </span>
             ) : (
-              <span className="h-7 w-28 animate-pulse rounded-full bg-stone-100" />
+              <span className="h-6 w-24 animate-pulse rounded-full bg-white/10" />
             )}
           </Link>
 
-          <div className="hidden flex-1 items-center justify-center gap-5 text-sm font-semibold text-stone-500 lg:flex">
-            <a
-              href="/#home"
-              className="whitespace-nowrap transition hover:text-stone-950"
-            >
+          <div className="hidden flex-1 items-center justify-center gap-6 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 lg:flex">
+            <a href="/#home" className="transition hover:text-white">
               Home
             </a>
 
-            <a
-              href="/#products"
-              className="whitespace-nowrap transition hover:text-stone-950"
-            >
+            <a href="/#products" className="transition hover:text-white">
               Shop
             </a>
 
-            <a
-              href="/#collections"
-              className="whitespace-nowrap transition hover:text-stone-950"
-            >
+            <a href="/#collections" className="transition hover:text-white">
               Collections
             </a>
 
-            <a
-              href="/#about"
-              className="whitespace-nowrap transition hover:text-stone-950"
-            >
+            <a href="/#about" className="transition hover:text-white">
               About
             </a>
 
             <button
               type="button"
               onClick={goToSale}
-              className="group inline-flex items-center gap-2 whitespace-nowrap font-bold text-red-500 transition hover:text-red-600"
+              className="group inline-flex items-center gap-2 font-bold text-red-300 transition hover:text-red-200"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500 transition group-hover:scale-125" />
+              <span className="h-1.5 w-1.5 rounded-full bg-red-300 transition group-hover:scale-125" />
               Sale
             </button>
 
             {user && (
-              <Link
-                to="/my-orders"
-                className="whitespace-nowrap transition hover:text-stone-950"
-              >
+              <Link to="/my-orders" className="transition hover:text-white">
                 My Orders
               </Link>
             )}
@@ -342,46 +327,46 @@ const Navbar = () => {
             {user?.role === "admin" && (
               <Link
                 to="/admin"
-                className="rounded-full bg-stone-950 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-stone-700"
+                className="rounded-full bg-white/15 px-4 py-2 text-[10px] font-bold text-white backdrop-blur-xl transition hover:bg-white hover:text-black"
               >
                 Admin
               </Link>
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 text-stone-700 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="grid h-11 w-11 place-items-center rounded-full border border-stone-200 text-stone-600 transition hover:border-stone-950 hover:text-stone-950 lg:hidden"
+              className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur-xl transition hover:bg-white hover:text-black lg:hidden"
               aria-label="Open menu"
             >
-              <Menu size={20} />
+              <Menu size={16} />
             </button>
 
             <button
               type="button"
               onClick={openSearch}
-              className="grid h-11 w-11 place-items-center rounded-full text-stone-600 transition hover:bg-stone-100 hover:text-stone-950"
+              className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur-xl transition hover:bg-white hover:text-black"
               aria-label="Search products"
             >
-              <Search size={20} />
+              <Search size={16} />
             </button>
 
             {user ? (
               <Link
                 to="/wishlist"
-                className="relative grid h-11 w-11 place-items-center rounded-full text-stone-600 transition hover:bg-red-50 hover:text-red-500"
+                className="relative grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur-xl transition hover:bg-red-500 hover:text-white"
                 aria-label="Wishlist"
               >
                 <Heart
-                  size={20}
+                  size={16}
                   fill={wishlistCount > 0 ? "currentColor" : "none"}
-                  className={wishlistCount > 0 ? "text-red-500" : ""}
+                  className={wishlistCount > 0 ? "text-red-300" : ""}
                 />
 
                 {wishlistCount > 0 && (
-                  <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-[11px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-red-500 text-[10px] font-bold text-white">
                     {wishlistCount}
                   </span>
                 )}
@@ -390,40 +375,40 @@ const Navbar = () => {
               <button
                 type="button"
                 onClick={handleWishlistClick}
-                className="grid h-11 w-11 place-items-center rounded-full text-stone-600 transition hover:bg-red-50 hover:text-red-500"
+                className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur-xl transition hover:bg-red-500 hover:text-white"
                 aria-label="Wishlist"
               >
-                <Heart size={20} />
+                <Heart size={16} />
               </button>
             )}
 
             {!user ? (
               <Link
                 to="/login"
-                className="grid h-11 w-11 place-items-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200 hover:text-stone-950"
+                className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur-xl transition hover:bg-white hover:text-black"
                 aria-label="Login"
               >
-                <User size={20} />
+                <User size={16} />
               </Link>
             ) : (
               <Link
                 to="/account"
-                className="grid h-11 w-11 place-items-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200 hover:text-stone-950"
+                className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur-xl transition hover:bg-white hover:text-black"
                 aria-label="Account"
               >
-                <User size={20} />
+                <User size={16} />
               </Link>
             )}
 
             <Link
               to="/cart"
-              className="relative grid h-11 w-11 place-items-center rounded-full text-stone-600 transition hover:bg-stone-100 hover:text-stone-950"
+              className="relative grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur-xl transition hover:bg-white hover:text-black"
               aria-label="Cart"
             >
-              <ShoppingBag size={20} />
+              <ShoppingBag size={16} />
 
               {totalItems > 0 && (
-                <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-stone-950 text-[11px] font-bold text-white">
+                <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-white text-[10px] font-bold text-black">
                   {totalItems}
                 </span>
               )}
@@ -433,10 +418,10 @@ const Navbar = () => {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="grid h-11 w-11 place-items-center rounded-full border border-stone-200 text-stone-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                className="hidden h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur-xl transition hover:bg-red-500 hover:text-white sm:grid"
                 aria-label="Logout"
               >
-                <LogOut size={18} />
+                <LogOut size={15} />
               </button>
             )}
           </div>
@@ -444,35 +429,35 @@ const Navbar = () => {
       </header>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[90] xl:hidden">
+        <div className="fixed inset-0 z-[90] lg:hidden">
           <button
             type="button"
             onClick={closeMobileMenu}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             aria-label="Close mobile menu"
           />
 
-          <aside className="absolute right-0 top-0 h-full w-[86%] max-w-sm overflow-y-auto bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between gap-4 border-b border-stone-100 pb-5">
+          <aside className="absolute right-0 top-0 h-full w-[86%] max-w-sm overflow-y-auto border-l border-white/10 bg-[#090909]/95 p-6 text-white shadow-2xl backdrop-blur-2xl">
+            <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-5">
               <div className="flex min-w-0 items-center gap-3">
                 {settings.logoUrl ? (
                   <img
                     src={settings.logoUrl}
                     alt={brandName}
-                    className="h-11 w-11 rounded-full object-cover"
+                    className="h-10 w-10 rounded-full border border-white/10 bg-white object-cover"
                   />
                 ) : (
-                  <span className="grid h-11 w-11 place-items-center rounded-full bg-stone-950 text-sm font-black text-white">
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-white/10 font-serif text-xl text-white">
                     {brandName.charAt(0)}
                   </span>
                 )}
 
                 <div className="min-w-0">
-                  <p className="truncate text-xl font-black text-stone-950">
+                  <p className="truncate font-serif text-2xl text-white">
                     {brandName}
                   </p>
 
-                  <p className="text-xs uppercase tracking-[0.3em] text-stone-400">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/35">
                     Menu
                   </p>
                 </div>
@@ -481,7 +466,7 @@ const Navbar = () => {
               <button
                 type="button"
                 onClick={closeMobileMenu}
-                className="grid h-10 w-10 place-items-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200"
+                className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/70 transition hover:bg-white hover:text-black"
                 aria-label="Close menu"
               >
                 <X size={18} />
@@ -492,7 +477,7 @@ const Navbar = () => {
               <a
                 href="/#home"
                 onClick={closeMobileMenu}
-                className="block rounded-2xl px-4 py-3 font-semibold text-stone-700 transition hover:bg-stone-50 hover:text-stone-950"
+                className="block rounded-2xl px-4 py-3 font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
               >
                 Home
               </a>
@@ -500,7 +485,7 @@ const Navbar = () => {
               <a
                 href="/#products"
                 onClick={closeMobileMenu}
-                className="block rounded-2xl px-4 py-3 font-semibold text-stone-700 transition hover:bg-stone-50 hover:text-stone-950"
+                className="block rounded-2xl px-4 py-3 font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
               >
                 Shop
               </a>
@@ -508,7 +493,7 @@ const Navbar = () => {
               <a
                 href="/#collections"
                 onClick={closeMobileMenu}
-                className="block rounded-2xl px-4 py-3 font-semibold text-stone-700 transition hover:bg-stone-50 hover:text-stone-950"
+                className="block rounded-2xl px-4 py-3 font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
               >
                 Collections
               </a>
@@ -516,7 +501,7 @@ const Navbar = () => {
               <a
                 href="/#about"
                 onClick={closeMobileMenu}
-                className="block rounded-2xl px-4 py-3 font-semibold text-stone-700 transition hover:bg-stone-50 hover:text-stone-950"
+                className="block rounded-2xl px-4 py-3 font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
               >
                 About
               </a>
@@ -524,9 +509,9 @@ const Navbar = () => {
               <button
                 type="button"
                 onClick={goToSale}
-                className="flex w-full items-center gap-2 rounded-2xl px-4 py-3 text-left font-bold text-red-500 transition hover:bg-red-50"
+                className="flex w-full items-center gap-2 rounded-2xl px-4 py-3 text-left font-bold text-red-400 transition hover:bg-red-500/10"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
                 Sale
               </button>
 
@@ -534,7 +519,7 @@ const Navbar = () => {
                 <Link
                   to="/my-orders"
                   onClick={closeMobileMenu}
-                  className="block rounded-2xl px-4 py-3 font-semibold text-stone-700 transition hover:bg-stone-50 hover:text-stone-950"
+                  className="block rounded-2xl px-4 py-3 font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
                 >
                   My Orders
                 </Link>
@@ -544,7 +529,7 @@ const Navbar = () => {
                 <Link
                   to="/admin"
                   onClick={closeMobileMenu}
-                  className="mt-4 block rounded-2xl bg-stone-950 px-4 py-3 text-center font-bold text-white transition hover:bg-stone-700"
+                  className="mt-4 block rounded-2xl bg-white px-4 py-3 text-center font-bold text-black transition hover:scale-[1.02]"
                 >
                   Admin Panel
                 </Link>
@@ -555,7 +540,7 @@ const Navbar = () => {
                   <Link
                     to="/login"
                     onClick={closeMobileMenu}
-                    className="rounded-full border border-stone-200 px-4 py-3 text-center text-sm font-semibold text-stone-700 transition hover:border-stone-950"
+                    className="rounded-full border border-white/15 px-4 py-3 text-center text-sm font-semibold text-white/75 transition hover:bg-white hover:text-black"
                   >
                     Login
                   </Link>
@@ -563,11 +548,22 @@ const Navbar = () => {
                   <Link
                     to="/register"
                     onClick={closeMobileMenu}
-                    className="rounded-full bg-stone-950 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-stone-700"
+                    className="rounded-full bg-white px-4 py-3 text-center text-sm font-bold text-black transition hover:scale-[1.02]"
                   >
                     Register
                   </Link>
                 </div>
+              )}
+
+              {user && (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500 hover:text-white"
+                >
+                  <LogOut size={17} />
+                  Logout
+                </button>
               )}
             </nav>
           </aside>
@@ -577,14 +573,14 @@ const Navbar = () => {
       {searchOpen && (
         <div
           onClick={closeSearch}
-          className="fixed inset-0 z-[80] bg-black/40 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-[80] bg-black/70 px-4 py-6 backdrop-blur-sm"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="mx-auto max-w-2xl rounded-[2rem] bg-white p-5 shadow-2xl"
+            className="mx-auto max-w-2xl rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-5 text-white shadow-2xl"
           >
-            <div className="flex items-center gap-3 border-b border-stone-100 pb-4">
-              <Search size={20} className="text-stone-400" />
+            <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+              <Search size={20} className="text-white/40" />
 
               <input
                 autoFocus
@@ -595,14 +591,14 @@ const Navbar = () => {
                     handleSearchSubmit();
                   }
                 }}
-                className="flex-1 bg-transparent py-2 text-lg outline-none placeholder:text-stone-400"
+                className="flex-1 bg-transparent py-2 text-lg text-white outline-none placeholder:text-white/35"
                 placeholder="Search rings, gold, bracelets..."
               />
 
               <button
                 type="button"
                 onClick={closeSearch}
-                className="grid h-10 w-10 place-items-center rounded-full bg-stone-100 text-stone-500 transition hover:bg-stone-200 hover:text-stone-950"
+                className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/60 transition hover:bg-white hover:text-black"
                 aria-label="Close search"
               >
                 <X size={18} />
@@ -611,7 +607,7 @@ const Navbar = () => {
 
             <div className="mt-5 max-h-[60vh] overflow-y-auto">
               {searchLoading ? (
-                <p className="py-8 text-center text-stone-500">
+                <p className="py-8 text-center text-white/50">
                   Loading products...
                 </p>
               ) : filteredProducts.length > 0 ? (
@@ -629,9 +625,9 @@ const Navbar = () => {
                         key={product._id}
                         type="button"
                         onClick={() => handleResultClick(product._id)}
-                        className="flex w-full items-center gap-4 rounded-2xl p-3 text-left transition hover:bg-stone-50"
+                        className="flex w-full items-center gap-4 rounded-2xl p-3 text-left transition hover:bg-white/5"
                       >
-                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white/10">
                           {hasDiscount && (
                             <span className="absolute left-1 top-1 z-10 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                               -{discountPercent}%
@@ -646,20 +642,20 @@ const Navbar = () => {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-semibold text-stone-950">
+                          <p className="truncate font-semibold text-white">
                             {product.name}
                           </p>
 
-                          <p className="mt-1 truncate text-sm text-stone-500">
+                          <p className="mt-1 truncate text-sm text-white/45">
                             {product.category} · {product.material || "Jewelry"}
                           </p>
                         </div>
 
                         <div className="text-right">
-                          <p className="font-bold text-stone-950">{price} DA</p>
+                          <p className="font-bold text-white">{price} DA</p>
 
                           {hasDiscount && (
-                            <p className="text-xs text-stone-400 line-through">
+                            <p className="text-xs text-white/35 line-through">
                               {oldPrice} DA
                             </p>
                           )}
@@ -670,11 +666,11 @@ const Navbar = () => {
                 </div>
               ) : (
                 <div className="py-10 text-center">
-                  <p className="text-lg font-semibold text-stone-950">
+                  <p className="text-lg font-semibold text-white">
                     No products found
                   </p>
 
-                  <p className="mt-2 text-sm text-stone-500">
+                  <p className="mt-2 text-sm text-white/45">
                     Try another keyword like ring, gold, necklace, bracelet.
                   </p>
                 </div>
@@ -685,7 +681,7 @@ const Navbar = () => {
               <button
                 type="button"
                 onClick={handleSearchSubmit}
-                className="mt-5 w-full rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-700"
+                className="mt-5 w-full rounded-full bg-white px-6 py-3 text-sm font-bold text-black transition hover:scale-[1.02]"
               >
                 View all results for “{searchQuery.trim()}”
               </button>
